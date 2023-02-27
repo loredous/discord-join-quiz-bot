@@ -31,7 +31,11 @@ class JoinBot(discord.Client):
         thread = await channel.create_thread(name=f'Join Quiz for {member.name}', auto_archive_duration=60)
         await thread.send(f'Hello <@{member.id}>!')
         await static_data.send_welcome_message(thread)
-        
+    
+    async def help_ping_control(self, message): # makes sure user does not use help role outside designated channel
+        if "<@1079500547549298729>" in message.content: # java help role
+            if static_data.JAVA_CHANNEL_ID != message.channel.id:
+                message.channel.id.send("You cannot use that help role in this channel")
 
 
 intents = discord.Intents.default()
