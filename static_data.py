@@ -38,9 +38,8 @@ class ReadRulesView(discord.ui.View):
 
 async def send_welcome_message(thread: discord.Thread):
     await thread.send(f"""Welcome to the Hacking and Coding Discord server!
- To ensure that new members have a chance to read and understand the rules of the server, we would like to give you a minute to read the rules in the <#{RULES_CHANNEL_ID}> channel.
-
- Once you are done reading the rules, come back to this thread and let me know, and we can proceed.
+To ensure that new members have a chance to read and understand the rules of the server, we would like to give you a minute to read the rules in the <#{RULES_CHANNEL_ID}> channel.
+Once you are done reading the rules, come back to this thread and let me know, and we can proceed.
  """
 , view=ReadRulesView(timeout=300))
     
@@ -101,7 +100,7 @@ class AccountHackingAnswers(discord.ui.View):
 async def send_account_hacking_question(thread: discord.Thread):
     await thread.send("""Let's check that you actually read and understood the rules:
      
-      When are you allowed to ask about account hacking in the server?""", view=AccountHackingAnswers(timeout=300))
+When are you allowed to ask about account hacking in the server?""", view=AccountHackingAnswers(timeout=300))
     
 
 ### WHERE SHOULD I POST MY QUESTIONS?
@@ -156,6 +155,6 @@ class SendQuestionAnswers(discord.ui.View):
 async def send_where_should_i_post_question(thread: discord.Thread):
     await thread.send("""One last question: 
 
-    I have a question. Where should I post it?
+I have a question. Where should I post it?
     """, view=SendQuestionAnswers(timeout=300))
 
