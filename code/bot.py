@@ -27,7 +27,7 @@ class JoinBot(discord.Client):
             await self.do_quiz(Guild, Member)
 
     async def do_quiz(self, guild: discord.Guild, member: discord.Member):
-        channel = discord.utils.get(guild.channels, id=static_data.RULES_CHANNEL_ID)
+        channel = discord.utils.get(guild.channels, id=int(os.getenv('RULES_CHANNEL_ID', None)))
         thread = await channel.create_thread(name=f'Join Quiz for {member.name}', auto_archive_duration=60)
         await thread.send(f'Hello <@{member.id}>!')
         await static_data.send_welcome_message(thread)
