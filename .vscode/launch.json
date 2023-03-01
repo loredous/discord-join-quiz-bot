@@ -8,7 +8,7 @@
             "name": "Python: Start Bot",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/bot.py",
+            "program": "${workspaceFolder}/code/bot.py",
             "console": "integratedTerminal",
             "justMyCode": true
         }

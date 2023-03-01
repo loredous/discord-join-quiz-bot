@@ -2,8 +2,8 @@ import asyncio
 import discord
 import os
 
-RULES_CHANNEL_ID = os.getenv('RULES_CHANNEL_ID', None)
-MEMBER_ROLE_ID = os.getenv('MEMBER_ROLE_ID', None)
+RULES_CHANNEL_ID = int(os.getenv('RULES_CHANNEL_ID', None))
+MEMBER_ROLE_ID = int(os.getenv('MEMBER_ROLE_ID', None))
 
 ### DO YOU AGREE TO THE RULES?
 
