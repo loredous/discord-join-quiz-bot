@@ -121,7 +121,7 @@ class SendQuestionAnswers(discord.ui.View):
             print("Fuck")
             
 
-    @discord.ui.button(label="In as many channels as possible so it can get seen", style=discord.ButtonStyle.primary)
+    @discord.ui.button(label="In as many channels as possible", style=discord.ButtonStyle.primary)
     async def many_channels(self, button: discord.Button, interaction: discord.Interaction):
         button.disabled = True
         self.failures += 1
@@ -135,7 +135,7 @@ class SendQuestionAnswers(discord.ui.View):
         await interaction.response.send_message("That's incorrect. Please try to post questions in the most appropriate channel. Some people only monitor the channels that they have knowledege in, and questions they might be able to answer could be missed if they are in the wrong channel.")
         await self.check_failures(interaction)
 
-    @discord.ui.button(label="In a DM to someone who seems like they might know the answer", style=discord.ButtonStyle.primary)
+    @discord.ui.button(label="In a DM", style=discord.ButtonStyle.primary)
     async def in_a_dm(self, button: discord.Button, interaction: discord.Interaction):
         button.disabled = True
         self.failures += 1
