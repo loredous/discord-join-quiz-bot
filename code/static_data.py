@@ -2,8 +2,8 @@ import asyncio
 import discord
 import os
 
-RULES_CHANNEL_ID = 1073303464655978528
-MEMBER_ROLE_ID = 1073303463842295967
+RULES_CHANNEL_ID = 151983595718705152
+MEMBER_ROLE_ID = 331210432192970752
 
 ### DO YOU AGREE TO THE RULES?
 
@@ -90,7 +90,7 @@ class AccountHackingAnswers(discord.ui.View):
     async def check_failures(self, interaction):
         if self.failures == 2:
             self.disable_all_items()
-            await interaction.response.send_message("It looks like you didn't really read the rules. If you decide later that you want to read the rules, come on back!")
+            await interaction.channel.send("It looks like you didn't really read the rules. If you decide later that you want to read the rules, come on back!")
             await asyncio.sleep(10)
             await interaction.guild.kick(interaction.user, reason="Didn't read the rules (Failed question 1)")
             self.stop()
@@ -145,7 +145,7 @@ class SendQuestionAnswers(discord.ui.View):
     async def check_failures(self, interaction):
         if self.failures == 2:
             self.disable_all_items()
-            await interaction.response.send_message("It looks like you didn't really read the rules. If you decide later that you want to read the rules, come on back!")
+            await interaction.channel.send("It looks like you didn't really read the rules. If you decide later that you want to read the rules, come on back!")
             await asyncio.sleep(10)
             await interaction.guild.kick(interaction.user, reason="Didn't read the rules (Failed question 2)")
             self.stop()

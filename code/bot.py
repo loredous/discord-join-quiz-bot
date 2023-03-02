@@ -17,14 +17,10 @@ embed0.description = "Testing"
 
 class JoinBot(discord.Client):
 
-    # async def on_member_join(self, member: discord.Member):
-    #     await member.send(embed=embed0)
-
-    async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
-        if payload.emoji.name == '👍':
-            Guild = self.get_guild(payload.guild_id)
-            Member = payload.member
-            await self.do_quiz(Guild, Member)
+    async def on_member_join(self, member: discord.Member):
+        Guild = member.guild
+        Member = member
+        await self.do_quiz(Guild, Member)
 
     async def do_quiz(self, guild: discord.Guild, member: discord.Member):
         channel = discord.utils.get(guild.channels, id=static_data.RULES_CHANNEL_ID)
