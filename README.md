@@ -187,6 +187,6 @@ Project Link: [https://github.com/loredous/discord-join-quiz-bot](https://github
 [issues-shield]: https://img.shields.io/github/issues/loredous/discord-join-quiz-bot.svg?style=for-the-badge
 [issues-url]: https://github.com/loredous/discord-join-quiz-bot/issues
 [license-shield]: https://img.shields.io/github/license/loredous/discord-join-quiz-bot.svg?style=for-the-badge
-[license-url]: https://github.com/loredous/discord-join-quiz-bot/blob/master/LICENSE.txt
+[license-url]: https://github.com/loredous/discord-join-quiz-bot/blob/master/LICENSE
 [Python]: https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white
 [Py-url]: https://www.python.org/
