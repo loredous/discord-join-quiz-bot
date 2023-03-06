@@ -1,0 +1,124 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: quizbot
+
+---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: quizbot-config
+  namespace: quizbot
+data:
+  quiz.yaml: |
+    quizzes:
+    - guild_ids: 1073303463695487047
+      welcome_text: Hello {mention} and welcome to the Hacking and Coding Discord server. To ensure the community remains within the guidelines of Discord's services, we have a few rules that we need to ensure everyone has read.
+      quiz_base_channel_id: 1073303464655978528
+      log_channel_id: 1073303466123989084
+      success_role_id: 1073303463842295967
+      success_text: Thank you for taking the time to read the rules! You have been granted full access to the server. Check out <#999453474116878356> to customize your profile with your knowledge, language(s) of choice, and your preferred operating system(s). 
+      fail_text: It looks like you might need to go back and read the rules better. Come back when you feel ready to really read the rules. You will be kicked in 10 seconds!
+      fail_action: kick
+      timeout_action: kick
+      questions:
+        - order: 1
+          text: Take a few minutes to read the rules of the server in the <#151983595718705152> channel, and ensure you understand and agree with them.
+          timeout: 600
+          timeout_text: It looks like you took more than 10 minutes to read the rules. Feel free to come back another time when you have time to read the rules! You will be kicked in 10 seconds!
+          timeout_audit: Took too long to read the rules
+          fail_count: 1
+          fail_audit: Disliked the rules
+          answers:
+            - text: I agree to follow the rules
+              correct: true
+            - text: I don't like the rules
+              post_text: That is unfortunate. If you decide later that you can deal with the rules, please come back.
+        - order: 2
+          text: Let's take a minute to check that you really did read and understand the rules. **When are you allowed to ask about account hacking in the server?**
+          timeout: 300
+          timeout_text: It looks like you took more than 5 minutes to answer the question. Feel free to come back another time when you have time to read the rules! You will be kicked in 10 seconds!
+          timeout_audit: Took too long to answer account hacking question
+          fail_text: It looks like you didn't really read the rules. If you decide later that you want to read the rules, come on back!
+          fail_count: 2
+          fail_audit: Couldn't answer account hacking question
+          randomize_answers: true
+          answers:
+            - text: Never
+              correct: true
+              post_text: That's correct!
+            - text: When it's my account
+              post_text: That's incorrect. If you have an account on a service, and the account has been hacked or hijacked, your only option is to work with the support team of that service. Trying to hack an account on a service, even if you own the account, is still considered an attack on the service itself!
+            - text: When it belongs to a bad person
+              post_text: That's incorrect. Two wrongs don't make a right. Trying to hack an account on a service is considered an attack on the service itself, regardless of the person who owns the account!
+            - text: When I'm hacking it back for someone
+              post_text: That's incorrect. If you have an account on a service, and the account has been hacked or hijacked, your only option is to work with the support team of that service. Trying to hack an account on a service, even if you own the account, is still considered an attack on the service itself!
+        - order: 3
+          text: One last question. **When you have a question, where should you post it?**
+          timeout: 300
+          timeout_text: It looks like you took more than 5 minutes to answer the question. Feel free to come back another time when you have time to read the rules! You will be kicked in 10 seconds!
+          timeout_audit: Took too long to answer channel selection question
+          fail_text: It looks like you didn't really read the rules. If you decide later that you want to read the rules, come on back!
+          fail_count: 2
+          fail_audit: Couldn't answer account channel selection question
+          randomize_answers: true
+          answers:
+            - text: In the channel that most closely matches the topic
+              correct: true
+              post_text: That's correct!
+            - text: In as many channels as possible
+              post_text: That's incorrect. Please limit posts to a single channel. Posting in multiple channels just makes for chaos when multiple people start answering in multiple places.
+            - text: In whatever channel I am in
+              post_text: That's incorrect. Please try to post questions in the most appropriate channel. Some people only monitor the channels that they have knowledege in, and questions they might be able to answer could be missed if they are in the wrong channel.
+            - text: In a DM
+              post_text: That's incorrect. We try to avoid DMs as much as possible in the server, as they make it so others can't learn from questions that have been asked previously.
+
+---
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: quizbot-token
+  namespace: quizbot
+type: Opaque
+data:
+  bot_token: bXlib3R0b2tlbmdvZXNoZXJl ##B64 Endoded: mybottokengoeshere
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: quizbot
+  namespace: quizbot
+  labels:
+    app: quizbot
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: quizbot
+  template:
+    metadata:
+      labels:
+        app: quizbot
+    spec:
+      containers:
+        - name: quizbot
+          image: ghcr.io/loredous/discord-join-quiz-bot:latest
+          env:
+            - name: BOT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: quizbot-token
+                  key: bot_token
+          volumeMounts:
+          - name: quiz-config
+            mountPath: /conf
+            readOnly: true
+      volumes:
+      - name: quiz-config
+        configMap:
+          name: quizbot-config
+
