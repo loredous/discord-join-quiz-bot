@@ -76,6 +76,7 @@ class QuizRunner():
         self.incorrect_answers = 0
         if len(self.questions) == 0:
             await self._complete_successful()
+            return
         self.current_question = self.questions.pop(0)
         self.current_view = self._view_builder(self.current_question.answers, self.current_question.timeout, self.current_question.randomize_answers)
         await self.quiz_channel.send(content=self.current_question.text, view=self.current_view)
