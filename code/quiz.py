@@ -24,8 +24,8 @@ class QuizLogger():
             await self.channel.send(embed=embed)
 
     async def send_metrics(self, metrics: dict):
-        if self.channel:
-            embed = discord.Embed(title="QuizBot Audit")
+        if self.channel and metrics:
+            embed = discord.Embed(title="QuizBot Metrics")
             for key in metrics:
                 embed.add_field(name=key, value=metrics[key], inline=True)
             await self.channel.send(embed=embed)
