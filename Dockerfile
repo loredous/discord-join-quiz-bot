@@ -1,4 +1,4 @@
-FROM python:3-slim
+FROM python:3.11-slim
 
 ENV BOT_TOKEN=""
 ENV QUIZ_CONFIG="/conf/quiz.yaml"

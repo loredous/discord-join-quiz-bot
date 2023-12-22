@@ -6,10 +6,11 @@ import discord
 from quiz_config import QuizConfig, Question, Answer, Action, QuizList
 from pathlib import Path
 from discord import Member, User, Interaction, Guild
+from pyformance import MetricsRegistry
 import yaml
 import random
 
-class QuizAuditLogger():
+class QuizLogger():
     channel = None
     
     def __init__(self, config: QuizConfig, guild: Guild) -> None:
@@ -22,8 +23,16 @@ class QuizAuditLogger():
             embed.add_field(name="Action", value=message)
             await self.channel.send(embed=embed)
 
+    async def send_metrics(self, metrics: dict):
+        if self.channel and metrics:
+            embed = discord.Embed(title="QuizBot Metrics")
+            for key in metrics:
+                embed.add_field(name=key, value=metrics[key], inline=True)
+            await self.channel.send(embed=embed)
+
 class Quiz():
-    def __init__(self, quiz_config_path: str) -> None:
+    def __init__(self, quiz_config_path: str, metrics_registry: MetricsRegistry) -> None:
+        self._metrics = metrics_registry
         self.logger = logging.getLogger('Quizzer')
         config_path = Path(quiz_config_path)
         if not config_path.is_file():
@@ -47,20 +56,32 @@ class Quiz():
         if not quiz:
             self.logger.warn(f'No matching quiz found for for guild {guild.name}')
             return
-        await QuizRunner(quizconfig=quiz, guild=guild, member=member).run()
+        await QuizRunner(quizconfig=quiz, guild=guild, member=member, metrics_registry=self._metrics).run()
+
+    async def requiz_member(self, member: Member, guild: Guild):
+        self.logger.info(f'Redoing quiz for user {member.name} in {guild.name}')
+        quiz = self.config.get_quiz_by_guild(guild.id)
+        if not quiz:
+            self.logger.warn(f'No matching quiz found for for guild {guild.name}')
+            return
+        role = guild.get_role(quiz.success_role_id)
+        await member.remove_roles(role)
+        await QuizRunner(quizconfig=quiz, guild=guild, member=member, metrics_registry=self._metrics).run()
 
 
 class QuizRunner():
-    def __init__(self, quizconfig: QuizConfig, guild: Guild, member: Member) -> None:
+    def __init__(self, quizconfig: QuizConfig, guild: Guild, member: Member, metrics_registry: MetricsRegistry) -> None:
+        self._metrics = metrics_registry
         self.config = quizconfig
         self.guild = guild
         self.member = member
         
     async def run(self):
+        self._metrics.counter("Quiz Runs").inc()
         self.failed = False
         self.base_channel = self.guild.get_channel(self.config.quiz_base_channel_id)
         self.quiz_channel = await self.base_channel.create_thread(name=f'Quiz for {self.member.name}', auto_archive_duration=60)
-        self.audit = QuizAuditLogger(self.config, self.guild)
+        self.audit = QuizLogger(self.config, self.guild)
         await self.audit.send_audit(f'Starting quiz for user {self.member.name}.')
         await self._send_welcome_message()
         await self.quiz_channel.edit(invitable=False)
@@ -103,6 +124,7 @@ class QuizRunner():
             
     async def _complete_successful(self):
         try:
+            self._metrics.counter("Quiz Successes").inc()
             await self.quiz_channel.send(self.config.success_text)
             await self.audit.send_audit(f"User {self.member.name} completed the rules quiz successfully.")
             role = self.guild.get_role(self.config.success_role_id)
@@ -114,14 +136,19 @@ class QuizRunner():
     async def _do_action(self, action: Action):
         match action:
             case Action.KICK:
+                self._metrics.counter(f"Kicks").inc()
+                self._metrics.counter(f"Actions Taken").inc()
                 await self.guild.kick(self.member)
             case Action.BAN:
+                self._metrics.counter(f"Bans").inc()
+                self._metrics.counter(f"Actions Taken").inc()
                 await self.guild.ban(self.member)
             case Action.NOTHING:
                 pass
 
     async def _complete_fail(self):
         try:
+            self._metrics.counter("Quiz Failures").inc()
             if self.config.fail_text:
                 await self.quiz_channel.send(content=self.config.fail_text)
             else:
@@ -134,6 +161,7 @@ class QuizRunner():
 
     async def _timeout_callback(self):
         try:
+            self._metrics.counter(f"Timeouts").inc()
             await self.quiz_channel.send(self.current_question.timeout_text)
             await self.audit.send_audit(f"User {self.member.name} failed the rules quiz: {self.current_question.timeout_audit}. Taking action [{self.config.timeout_action.name}]")
             await asyncio.sleep(10)
@@ -142,6 +170,8 @@ class QuizRunner():
             await self.quiz_channel.delete()
 
     async def _correct_answer_callback(self, interaction: discord.Interaction):
+        self._metrics.counter("Correct Answers").inc()
+        self._metrics.counter(f"Question {self.current_question.order} Correct Answers").inc()
         answer = self.current_question.get_answer_by_id(interaction.custom_id)
         self.current_view.disable_all_items()
         self.current_view.stop()
@@ -152,6 +182,8 @@ class QuizRunner():
         await self._send_next_question()
 
     async def _wrong_answer_callback(self, interaction: discord.Interaction):
+        self._metrics.counter("Wrong Answers").inc()
+        self._metrics.counter(f"Question {self.current_question.order} Wrong Answers").inc()
         answer = self.current_question.get_answer_by_id(interaction.custom_id)
         if answer.post_text:
             await interaction.response.send_message(answer.post_text)
