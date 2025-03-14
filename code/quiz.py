@@ -9,11 +9,13 @@ from discord import Member, User, Interaction, Guild
 from pyformance import MetricsRegistry
 import yaml
 import random
+import datetime
 
 class QuizLogger():
     channel = None
     
     def __init__(self, config: QuizConfig, guild: Guild) -> None:
+        self.restart_timestamp = datetime.datetime.now(datetime.timezone.utc)
         if config.log_channel_id:
             self.channel = guild.get_channel(config.log_channel_id)
 
@@ -24,10 +26,14 @@ class QuizLogger():
             await self.channel.send(embed=embed)
 
     async def send_metrics(self, metrics: dict):
-        if self.channel and metrics:
+        if self.channel:
             embed = discord.Embed(title="QuizBot Metrics")
-            for key in metrics:
-                embed.add_field(name=key, value=metrics[key], inline=True)
+            embed.description = f"Quizbot metrics since last restart"
+            if not metrics:
+                embed.add_field(name='No Metrics Found', value='No metrics recorded since last restart', inline=True)
+            else:
+                for key in metrics:
+                    embed.add_field(name=key, value=metrics[key]['count'], inline=True)
             await self.channel.send(embed=embed)
 
 class Quiz():

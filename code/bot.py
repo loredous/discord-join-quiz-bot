@@ -56,10 +56,12 @@ logger.info("Setting up Discord client.")
 @client.slash_command(name="metrics", description="Display the quizbot's metrics in the bot logging channel")
 async def send_metrics(ctx):
     await client.send_metrics(ctx.guild)
+    await ctx.respond('Metrics sent to logging channel')
 
 @client.slash_command(description="Force a user to go back through the join quiz")
 async def requiz(ctx, member: discord.Member):
     await client.requiz_member(ctx.guild, member)
+    await ctx.respond(f'Re-quiz started for user {member.display_name}')
 
 if __name__ == "__main__":
     token = os.getenv('BOT_TOKEN', None)
