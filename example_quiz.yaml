@@ -3,6 +3,11 @@ quizzes:
     welcome_text: Hello {mention} and welcome to the Hacking and Coding Discord server. To ensure the community remains within the guidelines of Discord's services, we have a few rules that we need to ensure everyone has read.
     quiz_base_channel_id: 1073303464655978528
     log_channel_id: 1073303466123989084
+    name_regex_actions:
+      - pattern: "spam"
+        action: ban
+      - pattern: "^bot"
+        action: kick
     success_role_id: 1073303463842295967
     success_text: Thank you for taking the time to read the rules! You have been granted full access to the server. Check out <#999453474116878356> to customize your profile with your knowledge, language(s) of choice, and your preferred operating system(s). 
     fail_text: It looks like you might need to go back and read the rules better. Come back when you feel ready to really read the rules. You will be kicked in 10 seconds!
