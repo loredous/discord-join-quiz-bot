@@ -84,7 +84,7 @@ The simplest way to get started running the bot is to run it locally on your dev
 1. Clone the repository  (`git@github.com:loredous/discord-join-quiz-bot.git`)
 2. Change into the newly cloned repository (`cd discord-join-quiz-bot`)
 3. Install the required packages used by the bot (`pip install -r requirements.txt`)
-4. Modify the `example_quiz.yaml` file to include the appropriate ID values for your test server
+4. Modify the `example_quiz.yaml` file to include the appropriate ID values for your test server. You can also define `name_regex_actions` to automatically kick or ban users whose names match specific patterns.
 5. Set the Discord bot token in the environment variable BOT_TOKEN (`export BOT_TOKEN=mytokengoeshere`)
 6. Run the bot (`python code/bot.py`)
 

@@ -5,7 +5,9 @@ from typing import Any
 import discord
 import logging
 import pyformance
+import re
 from quiz import Quiz, QuizLogger
+from quiz_config import Action
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DiscordJoinQuizBot')
@@ -32,9 +34,22 @@ class JoinBot(discord.Bot):
         self.loop.call_later(86400,self.daily_metrics)
         
     async def on_member_join(self, member: discord.Member):
-        Guild = member.guild
-        Member = member
-        await self._quizconfig.start_quiz(Member, Guild)
+        guild = member.guild
+        quiz = self.quizconfig.config.get_quiz_by_guild(guild.id)
+        if quiz and quiz.name_regex_actions:
+            for action_cfg in quiz.name_regex_actions:
+                pattern = re.compile(action_cfg.pattern, re.IGNORECASE)
+                if pattern.search(member.name) or pattern.search(member.display_name):
+                    logger.info(f'User {member.name} matched join regex {action_cfg.pattern}. Action {action_cfg.action.name}')
+                    await QuizLogger(quiz, guild).send_audit(
+                        f'User {member.name} matched join regex {action_cfg.pattern}. Taking action {action_cfg.action.name}'
+                    )
+                    if action_cfg.action == Action.KICK:
+                        await guild.kick(member)
+                    elif action_cfg.action == Action.BAN:
+                        await guild.ban(member)
+                    return
+        await self._quizconfig.start_quiz(member, guild)
 
     async def send_metrics(self, guild):
         metrics = self._metrics.dump_metrics()

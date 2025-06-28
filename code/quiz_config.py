@@ -2,6 +2,7 @@ from pydantic import BaseModel, validator
 from typing import Optional, List, Union
 from enum import Enum
 from hashlib import md5
+import re
 
 class Action(Enum):
     KICK = 1
@@ -35,6 +36,16 @@ class Question(BaseModel):
         if ans:
             return ans[0]
 
+class NameRegexAction(BaseModel):
+    pattern: str
+    action: Action = Action.KICK
+
+    @validator('action', pre=True)
+    def set_action_by_string(cls, v):
+        if isinstance(v, str):
+            return Action[v.upper()]
+        return v
+
 class QuizConfig(BaseModel):
     guild_ids: Union[ int, List[int] ]
     welcome_text: str
@@ -43,6 +54,7 @@ class QuizConfig(BaseModel):
     success_role_id: int
     success_text: Optional[str]
     questions: List[Question]
+    name_regex_actions: Optional[List[NameRegexAction]] = []
     fail_action: Action = Action.KICK
     timeout_action: Action = Action.KICK
     fail_text: Optional[str]
