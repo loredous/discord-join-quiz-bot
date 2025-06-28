@@ -53,7 +53,7 @@ class QuizConfig(BaseModel):
     success_role_id: int
     success_text: Optional[str]
     questions: List[Question]
-    name_regex_actions: Optional[List[NameRegexAction]] = []
+    name_regex_actions: Optional[List[NameRegexAction]] = Field(default_factory=list)
     fail_action: Action = Action.KICK
     timeout_action: Action = Action.KICK
     fail_text: Optional[str]
