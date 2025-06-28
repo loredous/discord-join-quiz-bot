@@ -2,7 +2,6 @@ from pydantic import BaseModel, validator
 from typing import Optional, List, Union
 from enum import Enum
 from hashlib import md5
-import re
 
 class Action(Enum):
     KICK = 1
