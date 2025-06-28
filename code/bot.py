@@ -37,10 +37,9 @@ class JoinBot(discord.Bot):
         guild = member.guild
         quiz = self.quizconfig.config.get_quiz_by_guild(guild.id)
         if quiz and quiz.name_regex_actions:
-            for action_cfg in quiz.name_regex_actions:
-                pattern = re.compile(action_cfg.pattern, re.IGNORECASE)
+            for pattern, action in quiz.compiled_name_regex_actions:
                 if pattern.search(member.name) or pattern.search(member.display_name):
-                    logger.info(f'User {member.name} matched join regex {action_cfg.pattern}. Action {action_cfg.action.name}')
+                    logger.info(f'User {member.name} matched join regex {pattern.pattern}. Action {action.name}')
                     await QuizLogger(quiz, guild).send_audit(
                         f'User {member.name} matched join regex {action_cfg.pattern}. Taking action {action_cfg.action.name}'
                     )
