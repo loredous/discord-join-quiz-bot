@@ -87,7 +87,7 @@ async def banish(ctx, member: discord.Member):
     if not role:
         await ctx.respond('Configured banish role not found.', ephemeral=True)
         return
-    roles_to_remove = [r for r in member.roles if r != ctx.guild.default_role]
+    roles_to_remove = [r for r in member.roles if r != ctx.guild.default_role and r.id != quiz.banish_role_id]
     if roles_to_remove:
         await member.remove_roles(*roles_to_remove)
     await member.add_roles(role)
