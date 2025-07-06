@@ -51,7 +51,7 @@ class QuizConfig(BaseModel):
     quiz_base_channel_id: int
     log_channel_id: Optional[int]
     success_role_id: int
-    banish_role_id: Optional[int]
+    banish_role_id: Optional[int] = None
     success_text: Optional[str]
     questions: List[Question]
     name_regex_actions: Optional[List[NameRegexAction]] = Field(default_factory=list)
