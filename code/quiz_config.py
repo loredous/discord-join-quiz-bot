@@ -65,7 +65,7 @@ class QuizConfig(BaseModel):
         if isinstance(v, str):
             return Action[v.upper()]
 
-    @property
+    @cached_property
     def compiled_name_regex_actions(self):
         compiled = []
         for action in self.name_regex_actions:
