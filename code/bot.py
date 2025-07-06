@@ -77,7 +77,7 @@ async def requiz(ctx, member: discord.Member):
     await client.requiz_member(ctx.guild, member)
     await ctx.respond(f'Re-quiz started for user {member.display_name}')
 
-@client.slash_command(description="Remove all roles from a user and assign the configured banish role")
+@client.slash_command(description="Banish a user from the server. This will remove all roles except the banish role.")
 async def banish(ctx, member: discord.Member):
     quiz = client.quizconfig.config.get_quiz_by_guild(ctx.guild.id)
     if not quiz or not quiz.banish_role_id:
