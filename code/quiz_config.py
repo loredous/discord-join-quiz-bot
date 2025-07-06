@@ -1,5 +1,6 @@
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, validator, Field
 from typing import Optional, List, Union
+import re
 from enum import Enum
 from hashlib import md5
 
@@ -63,6 +64,17 @@ class QuizConfig(BaseModel):
     def set_action_by_string(cls, v, *, values, **kwargs):
         if isinstance(v, str):
             return Action[v.upper()]
+
+    @cached_property
+    def compiled_name_regex_actions(self):
+        compiled = []
+        for action in self.name_regex_actions:
+            try:
+                pattern = re.compile(action.pattern, re.IGNORECASE)
+            except re.error:
+                continue
+            compiled.append((pattern, action))
+        return compiled
 
 class QuizList(BaseModel):
     quizzes: List[QuizConfig]
