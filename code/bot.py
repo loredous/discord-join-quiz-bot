@@ -43,7 +43,7 @@ class JoinBot(discord.Bot):
                         f'User {member.name} matched join regex {pattern.pattern}. Action {action_cfg.action.name}'
                     )
                     await QuizLogger(quiz, guild).send_audit(
-                        f'User {member.name} matched join regex {action_cfg.pattern}. Taking action {action_cfg.action.name}'
+                        f'User {member.name} matched join regex {pattern.pattern}. Taking action {action_cfg.action.name}'
                     )
                     if action_cfg.action == Action.KICK:
                         await guild.kick(member)
