@@ -65,9 +65,11 @@ class QuizConfig(BaseModel):
         if isinstance(v, str):
             return Action[v.upper()]
 
-    @cached_property
+    @property
     def compiled_name_regex_actions(self):
         compiled = []
+        if not self.name_regex_actions:
+            return compiled
         for action in self.name_regex_actions:
             try:
                 pattern = re.compile(action.pattern, re.IGNORECASE)
