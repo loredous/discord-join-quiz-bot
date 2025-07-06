@@ -78,7 +78,7 @@ async def requiz(ctx, member: discord.Member):
     await ctx.respond(f'Re-quiz started for user {member.display_name}')
 
 @client.slash_command(description="Banish a user from the server. This will remove all roles except the banish role.")
-async def banish(ctx, member: discord.Member):
+async def banish(ctx, member: discord.Member, reason: str | None = None):
     quiz = client.quizconfig.config.get_quiz_by_guild(ctx.guild.id)
     if not quiz or not quiz.banish_role_id:
         await ctx.respond('No banish role configured for this guild.', ephemeral=True)
@@ -91,7 +91,12 @@ async def banish(ctx, member: discord.Member):
     if roles_to_remove:
         await member.remove_roles(*roles_to_remove)
     await member.add_roles(role)
-    await ctx.respond(f'{member.display_name} has been banished.')
+    if reason:
+        await member.send(f'You have been banished from {ctx.guild.name} for the following reason: {reason}')
+        await ctx.respond(f'{member.display_name} has been banished for the following reason: {reason}')
+    else:
+        await member.send(f'You have been banished from {ctx.guild.name}.')
+        await ctx.respond(f'{member.display_name} has been banished.')
 
 if __name__ == "__main__":
     token = os.getenv('BOT_TOKEN', None)
