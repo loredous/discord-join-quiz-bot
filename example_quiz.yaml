@@ -9,7 +9,8 @@ quizzes:
       - pattern: "^bot"
         action: kick
     success_role_id: 1073303463842295967
-    success_text: Thank you for taking the time to read the rules! You have been granted full access to the server. Check out <#999453474116878356> to customize your profile with your knowledge, language(s) of choice, and your preferred operating system(s). 
+    banish_role_id: 0
+    success_text: Thank you for taking the time to read the rules! You have been granted full access to the server. Check out <#999453474116878356> to customize your profile with your knowledge, language(s) of choice, and your preferred operating system(s).
     fail_text: It looks like you might need to go back and read the rules better. Come back when you feel ready to really read the rules. You will be kicked in 10 seconds!
     fail_action: kick
     timeout_action: kick
