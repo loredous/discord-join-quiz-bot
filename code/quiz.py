@@ -227,15 +227,15 @@ class QuizeeList():
         if guild_id not in self.quizees:
             self.quizees[guild_id] = {}
         if member not in self.quizees[guild_id].keys():
-            self.quizees[guild_id][member] = {
+            self.quizees[guild_id][member.id] = {
                 'count': 1,
                 'last_quiz': datetime.datetime.now(datetime.timezone.utc)
             }
         else:
-            self.quizees[guild_id][member]['count'] += 1
-            self.quizees[guild_id][member]['last_quiz'] = datetime.datetime.now(datetime.timezone.utc)
-        return self.quizees[guild_id][member]
-    
+            self.quizees[guild_id][member.id]['count'] += 1
+            self.quizees[guild_id][member.id]['last_quiz'] = datetime.datetime.now(datetime.timezone.utc)
+        return self.quizees[guild_id][member.id]
+
     def purge(self, guild_id: int):
         if guild_id in self.quizees:
             for member in list(self.quizees[guild_id].keys()):
