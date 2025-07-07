@@ -49,6 +49,8 @@ class JoinBot(discord.Bot):
                         await guild.kick(member)
                     elif action_cfg.action == Action.BAN:
                         await guild.ban(member)
+                    elif action_cfg.action == Action.BANISH:
+                        await banish_user(member, guild)
                     return
         await self._quizconfig.start_quiz(member, guild)
 
@@ -81,24 +83,28 @@ async def requiz(ctx, member: discord.Member):
 
 @client.slash_command(description="Banish a user from the server. This will remove all roles except the banish role.")
 async def banish(ctx, member: discord.Member, reason: str | None = None):
-    quiz = client.quizconfig.config.get_quiz_by_guild(ctx.guild.id)
-    if not quiz or not quiz.banish_role_id:
-        await ctx.respond('No banish role configured for this guild.', ephemeral=True)
-        return
-    role = ctx.guild.get_role(quiz.banish_role_id)
-    if not role:
-        await ctx.respond('Configured banish role not found.', ephemeral=True)
-        return
-    roles_to_remove = [r for r in member.roles if r != ctx.guild.default_role and r.id != quiz.banish_role_id]
-    if roles_to_remove:
-        await member.remove_roles(*roles_to_remove)
-    await member.add_roles(role)
+    await banish_user(member, ctx.guild)
     if reason:
         await member.send(f'You have been banished from {ctx.guild.name} for the following reason: {reason}')
         await ctx.respond(f'{member.display_name} has been banished for the following reason: {reason}')
     else:
         await member.send(f'You have been banished from {ctx.guild.name}.')
         await ctx.respond(f'{member.display_name} has been banished.')
+
+async def banish_user(member: discord.Member, guild: discord.Guild):
+    quiz = client.quizconfig.config.get_quiz_by_guild(guild.id)
+    if not quiz or not quiz.banish_role_id:
+        logger.error('No banish role configured for this guild.')
+        return
+    role = guild.get_role(quiz.banish_role_id)
+    if not role:
+        logger.error('Configured banish role not found.')
+        return
+    roles_to_remove = [r for r in member.roles if r != guild.default_role and r.id != quiz.banish_role_id]
+    if roles_to_remove:
+        await member.remove_roles(*roles_to_remove)
+    await member.add_roles(role)
+
 
 if __name__ == "__main__":
     token = os.getenv('BOT_TOKEN', None)
