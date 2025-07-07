@@ -177,7 +177,7 @@ class QuizRunner():
             await self.audit.send_audit(f"User {self.member.name} failed the rules quiz: {self.current_question.fail_audit}. Taking action [{self.config.fail_actions[self.attempt_count].name if self.attempt_count < len(self.config.fail_actions) else self.config.fail_actions[-1].name}]")
             await asyncio.sleep(10)
             if self.attempt_count < len(self.config.fail_actions):
-                await self._do_action(self.config.fail_actions[self.attempt_count])
+                await self._do_action(self.config.fail_actions[self.attempt_count-1])
             else:
                 await self._do_action(self.config.fail_actions[-1])
         finally:
