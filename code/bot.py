@@ -27,12 +27,18 @@ class JoinBot(discord.Bot):
 
     async def on_ready(self):
         self.loop.call_later(86400,self.daily_metrics)
+        self.loop.call_later(1200,self.purge_quizees)
 
     def daily_metrics(self):
         for guild in self.guilds:
             asyncio.create_task(self.send_metrics(guild))
         self.loop.call_later(86400,self.daily_metrics)
-        
+    
+    def purge_quizees(self):
+        for guild in self.guilds:
+            self.quizconfig.quizees.purge(guild.id)
+        self.loop.call_later(1200,self.purge_quizees)
+
     async def on_member_join(self, member: discord.Member):
         guild = member.guild
         quiz = self.quizconfig.config.get_quiz_by_guild(guild.id)

@@ -58,7 +58,6 @@ class Quiz():
             raise ex
         
     async def start_quiz(self, member: Member, guild: Guild):
-        self.quizees.purge(guild.id)
         self.logger.info(f'Starting quiz for user {member.name} in {guild.name}')
         quiz = self.config.get_quiz_by_guild(guild.id)
         quizee = self.quizees.get_quizee(guild.id, member)
@@ -102,7 +101,7 @@ class QuizRunner():
 
 
     async def _send_welcome_message(self):
-        await self.quiz_channel.send(f"Welcome to the rules quiz, {self.member.mention}! There are {len(self.questions)} questions to answer. Please read each question carefully and select the correct answer. You can only get {self.config.questions[0].fail_count} questions wrong before failing the quiz. This is attempt number {self.attempt_count} for you. The punishment for failing this attempt is {self.config.fail_actions[self.attempt_count] if self.attempt_count < len(self.config.fail_actions) else self.config.fail_actions[-1].name}.")
+        await self.quiz_channel.send(f"Welcome to the rules quiz, {self.member.mention}! There are {len(self.questions)} questions to answer. Please read each question carefully and select the correct answer. You can only get {self.config.questions[0].fail_count} questions wrong before failing the quiz. This is attempt number {self.attempt_count} for you. The punishment for failing this attempt is {self.config.fail_actions[self.attempt_count].name if self.attempt_count < len(self.config.fail_actions) else self.config.fail_actions[-1].name}.")
         await self.quiz_channel.send(self.config.welcome_text.format(mention = self.member.mention))
 
     async def _send_next_question(self):
@@ -175,7 +174,7 @@ class QuizRunner():
                 await self.quiz_channel.send(content=self.config.fail_text)
             else:
                 await self.quiz_channel.send("Sorry, it looks like you failed the quiz.")
-            await self.audit.send_audit(f"User {self.member.name} failed the rules quiz: {self.current_question.fail_audit}. Taking action [{self.config.fail_action.name}]")
+            await self.audit.send_audit(f"User {self.member.name} failed the rules quiz: {self.current_question.fail_audit}. Taking action [{self.config.fail_actions[self.attempt_count].name if self.attempt_count < len(self.config.fail_actions) else self.config.fail_actions[-1].name}]")
             await asyncio.sleep(10)
             if self.attempt_count < len(self.config.fail_actions):
                 await self._do_action(self.config.fail_actions[self.attempt_count])
@@ -236,6 +235,7 @@ class QuizeeList():
             self.quizees[guild_id][member]['count'] += 1
             self.quizees[guild_id][member]['last_quiz'] = datetime.datetime.now(datetime.timezone.utc)
         return self.quizees[guild_id][member]
+    
     def purge(self, guild_id: int):
         if guild_id in self.quizees:
             for member in list(self.quizees[guild_id].keys()):
