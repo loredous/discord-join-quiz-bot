@@ -8,6 +8,7 @@ class Action(Enum):
     KICK = 1
     BAN = 2
     NOTHING = 3
+    BANISH = 4
 
 class Answer(BaseModel):
     text: str
@@ -56,14 +57,20 @@ class QuizConfig(BaseModel):
     success_text: Optional[str]
     questions: List[Question]
     name_regex_actions: Optional[List[NameRegexAction]] = Field(default_factory=list)
-    fail_action: Action = Action.KICK
+    fail_actions: list[Action] = [Action.KICK, Action.BAN]
     timeout_action: Action = Action.KICK
     fail_text: Optional[str]
 
-    @validator('fail_action','timeout_action', pre=True)
+    @validator('timeout_action', pre=True)
     def set_action_by_string(cls, v, *, values, **kwargs):
         if isinstance(v, str):
             return Action[v.upper()]
+
+    @validator('fail_actions', pre=True)
+    def set_fail_actions(cls, v, *, values, **kwargs):
+        if isinstance(v, list):
+            return [Action[action.upper()] if isinstance(action, str) else action for action in v]
+        raise ValueError("fail_actions must be a list of Action or strings")
 
     @property
     def compiled_name_regex_actions(self):
