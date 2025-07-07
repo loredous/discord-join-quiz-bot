@@ -101,7 +101,7 @@ class QuizRunner():
 
 
     async def _send_welcome_message(self):
-        await self.quiz_channel.send(f"Welcome to the rules quiz, {self.member.mention}! There are {len(self.questions)} questions to answer. Please read each question carefully and select the correct answer. You can only get {self.config.questions[0].fail_count} questions wrong before failing the quiz. This is attempt number {self.attempt_count} for you. The punishment for failing this attempt is {self.config.fail_actions[self.attempt_count].name if self.attempt_count < len(self.config.fail_actions) else self.config.fail_actions[-1].name}.")
+        await self.quiz_channel.send(f"Welcome to the rules quiz, {self.member.mention}! There are {len(self.config.questions)} questions to answer. Please read each question carefully and select the correct answer. You can only get {self.config.questions[0].fail_count} questions wrong before failing the quiz. This is attempt number {self.attempt_count} for you. The punishment for failing this attempt is {self.config.fail_actions[self.attempt_count].name if self.attempt_count < len(self.config.fail_actions) else self.config.fail_actions[-1].name}.")
         await self.quiz_channel.send(self.config.welcome_text.format(mention = self.member.mention))
 
     async def _send_next_question(self):
