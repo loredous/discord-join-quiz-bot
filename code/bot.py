@@ -8,6 +8,7 @@ import pyformance
 import re
 from quiz import Quiz, QuizLogger
 from quiz_config import Action
+from discord.ext.commands import Context
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DiscordJoinQuizBot')
@@ -88,14 +89,14 @@ async def requiz(ctx, member: discord.Member):
     await ctx.respond(f'Re-quiz started for user {member.display_name}')
 
 @client.slash_command(description="Banish a user from the server. This will remove all roles except the banish role.")
-async def banish(ctx, member: discord.Member, reason: str | None = None):
+async def banish(ctx: Context, member: discord.Member, reason: str | None = None):
     await banish_user(member, ctx.guild)
     if reason:
         await member.send(f'You have been banished from {ctx.guild.name} for the following reason: {reason}')
-        await ctx.respond(f'{member.display_name} has been banished for the following reason: {reason}')
+        await ctx.send(f'{member.display_name} has been banished for the following reason: {reason}')
     else:
         await member.send(f'You have been banished from {ctx.guild.name}.')
-        await ctx.respond(f'{member.display_name} has been banished.')
+        await ctx.send(f'{member.display_name} has been banished.')
 
 async def banish_user(member: discord.Member, guild: discord.Guild):
     quiz = client.quizconfig.config.get_quiz_by_guild(guild.id)
