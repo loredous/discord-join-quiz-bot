@@ -109,7 +109,7 @@ async def reload_quiz(ctx: discord.ApplicationContext):
     await ctx.send_response("Quiz config reloaded", ephemeral=True)
     quiz = client.quizconfig.config.get_quiz_by_guild(ctx.guild.id)
     if quiz:
-        await QuizLogger(quiz, ctx.guild).send_audit("Quiz configuration reloaded via /reload_quiz command.")
+        await QuizLogger(quiz, ctx.guild).send_audit("Quiz configuration reloaded via /reload command.")
 
 async def banish_user(member: discord.Member, guild: discord.Guild):
     quiz = client.quizconfig.config.get_quiz_by_guild(guild.id)
