@@ -29,6 +29,10 @@ class JoinBot(discord.Bot):
     async def on_ready(self):
         self.loop.call_later(86400,self.daily_metrics)
         self.loop.call_later(1200,self.purge_quizees)
+        for guild in self.guilds:
+            quiz = self.quizconfig.config.get_quiz_by_guild(guild.id)
+            if quiz:
+                await QuizLogger(quiz, guild).send_audit("Bot is online and ready.")
 
     def daily_metrics(self):
         for guild in self.guilds:
@@ -79,24 +83,33 @@ client = JoinBot(intents=intents)
 logger.info("Setting up Discord client.")
 
 @client.slash_command(name="metrics", description="Display the quizbot's metrics in the bot logging channel")
-async def send_metrics(ctx):
+async def send_metrics(ctx: discord.ApplicationContext):
     await client.send_metrics(ctx.guild)
-    await ctx.respond('Metrics sent to logging channel')
+    await ctx.respond('Metrics sent to logging channel', ephemeral=True)
 
 @client.slash_command(description="Force a user to go back through the join quiz")
-async def requiz(ctx, member: discord.Member):
+async def requiz(ctx: discord.ApplicationContext, member: discord.Member):
     await client.requiz_member(ctx.guild, member)
     await ctx.respond(f'Re-quiz started for user {member.display_name}')
 
 @client.slash_command(description="Banish a user from the server. This will remove all roles except the banish role.")
-async def banish(ctx: Context, member: discord.Member, reason: str | None = None):
+async def banish(ctx: discord.ApplicationContext, member: discord.Member, reason: str | None = None):
     await banish_user(member, ctx.guild)
     if reason:
         await member.send(f'You have been banished from {ctx.guild.name} for the following reason: {reason}')
-        await ctx.send(f'{member.display_name} has been banished for the following reason: {reason}')
+        await ctx.respond(f'{member.display_name} has been banished for the following reason: {reason}')
     else:
         await member.send(f'You have been banished from {ctx.guild.name}.')
-        await ctx.send(f'{member.display_name} has been banished.')
+        await ctx.respond(f'{member.display_name} has been banished.')
+
+@client.slash_command(name="reload", description="Force a reload of the quiz configuration")
+async def reload_quiz(ctx: discord.ApplicationContext):
+    config = os.getenv('QUIZ_CONFIG', "/quiz_config.yaml")
+    client.quizconfig = Quiz(config, client._metrics)
+    await ctx.send_response("Quiz config reloaded", ephemeral=True)
+    quiz = client.quizconfig.config.get_quiz_by_guild(ctx.guild.id)
+    if quiz:
+        await QuizLogger(quiz, ctx.guild).send_audit("Quiz configuration reloaded via /reload_quiz command.")
 
 async def banish_user(member: discord.Member, guild: discord.Guild):
     quiz = client.quizconfig.config.get_quiz_by_guild(guild.id)
