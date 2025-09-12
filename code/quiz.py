@@ -5,7 +5,7 @@ from typing import List
 import discord
 from quiz_config import QuizConfig, Question, Answer, Action, QuizList
 from pathlib import Path
-from discord import Member, User, Interaction, Guild
+from discord import Forbidden, HTTPException, Member, User, Interaction, Guild
 from pyformance import MetricsRegistry
 import yaml
 import random
@@ -62,7 +62,7 @@ class Quiz():
         quiz = self.config.get_quiz_by_guild(guild.id)
         quizee = self.quizees.get_quizee(guild.id, member)
         if not quiz:
-            self.logger.warn(f'No matching quiz found for for guild {guild.name}')
+            self.logger.warning(f'No matching quiz found for for guild {guild.name}')
             return
         await QuizRunner(quizconfig=quiz, attempt=quizee['count'], guild=guild, member=member, metrics_registry=self._metrics).run()
 
@@ -71,10 +71,19 @@ class Quiz():
         quiz = self.config.get_quiz_by_guild(guild.id)
         quizee = self.quizees.get_quizee(guild.id, member)
         if not quiz:
-            self.logger.warn(f'No matching quiz found for for guild {guild.name}')
+            self.logger.warning(f'No matching quiz found for for guild {guild.name}')
             return
-        role = guild.get_role(quiz.success_role_id)
-        await member.remove_roles(role)
+        roles = []
+        roles.append(guild.get_role(quiz.success_role_id))
+        if quiz.banish_role_id:
+            roles.append(guild.get_role(quiz.banish_role_id))
+        try:
+            await member.remove_roles(*roles)
+        except Forbidden as ex:
+            self.logger.error(f'Insufficient permissions to remove roles from user {member.name} during requiz: {ex}')
+        except HTTPException as ex:
+            self.logger.error(f'Error removing roles from user {member.name} during requiz: {ex}')
+        
         await QuizRunner(quizconfig=quiz, attempt=quizee['count'], guild=guild, member=member, metrics_registry=self._metrics).run()
 
 
