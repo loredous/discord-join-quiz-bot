@@ -108,6 +108,10 @@ async def send_metrics(ctx: discord.ApplicationContext):
 
 @client.slash_command(description="Force a user to go back through the join quiz")
 async def requiz(ctx: discord.ApplicationContext, member: discord.Member):
+    quiz = client.quizconfig.config.get_quiz_by_guild(ctx.guild.id)
+    if quiz and quiz.moderator_banish_role_id and any(role.id == quiz.moderator_banish_role_id for role in member.roles):
+        await ctx.respond(f'{member.display_name} has been banished by a moderator and cannot be re-quizzed.', ephemeral=True)
+        return
     await client.requiz_member(ctx.guild, member)
     await ctx.respond(f'Re-quiz started for user {member.display_name}')
 
