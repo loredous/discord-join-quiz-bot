@@ -15,7 +15,7 @@ class Answer(BaseModel):
     text: str
     id: str = ""
     correct: bool = False
-    post_text: str | None
+    post_text: str | None = None
 
     @validator('id', pre=True, always=True)
     def set_default_id(cls, v, *, values, **kwargs):
