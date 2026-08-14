@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import re
 from typing import List
 
 import discord
@@ -11,9 +12,34 @@ import yaml
 import random
 import datetime
 
+_METRIC_ORDER = [
+    "Quiz Runs",
+    "Quiz Successes",
+    "Quiz Failures",
+    "Timeouts",
+    "Correct Answers",
+    "Wrong Answers",
+    "Actions Taken",
+    "Kicks",
+    "Bans",
+    "Banishes",
+]
+
+_QUESTION_METRIC_RE = re.compile(r'^Question (\d+) (Correct|Wrong) Answers$')
+
+def _metric_sort_key(name: str):
+    if name in _METRIC_ORDER:
+        return (0, _METRIC_ORDER.index(name), name)
+    match = _QUESTION_METRIC_RE.match(name)
+    if match:
+        question_number = int(match.group(1))
+        answer_rank = 0 if match.group(2) == "Correct" else 1
+        return (1, question_number, answer_rank, name)
+    return (2, 0, 0, name)
+
 class QuizLogger():
     channel = None
-    
+
     def __init__(self, config: QuizConfig, guild: Guild) -> None:
         self.restart_timestamp = datetime.datetime.now(datetime.timezone.utc)
         if config.log_channel_id:
@@ -32,7 +58,7 @@ class QuizLogger():
             if not metrics:
                 embed.add_field(name='No Metrics Found', value='No metrics recorded since last restart', inline=True)
             else:
-                for key in metrics:
+                for key in sorted(metrics, key=_metric_sort_key):
                     embed.add_field(name=key, value=metrics[key]['count'], inline=True)
             await self.channel.send(embed=embed)
 
@@ -46,6 +72,7 @@ class Quiz():
             raise RuntimeError(f'quiz_config_path value {quiz_config_path} is not a file!')
         self.__load_quiz_configuration(quiz_config_path)
         self.quizees = QuizeeList()
+        self.active_quizzes = {}
         
     def __load_quiz_configuration(self, config_file_path):
         self.logger.info(f'Attempting to load quiz configuration from file [{config_file_path}]')
@@ -57,17 +84,32 @@ class Quiz():
             self.logger.exception(f'Exception when attempting to load quiz configuration!')
             raise ex
         
+    async def cancel_active_quiz(self, guild_id: int, member_id: int):
+        existing = self.active_quizzes.get((guild_id, member_id))
+        if existing:
+            self.logger.info(f'Cancelling existing in-progress quiz for user {existing.member.name} (ID: {member_id}) in guild {guild_id}.')
+            await existing.cancel()
+
+    async def _run_quiz(self, quiz: QuizConfig, attempt: int, guild: Guild, member: Member):
+        await self.cancel_active_quiz(guild.id, member.id)
+        runner = QuizRunner(
+            quizconfig=quiz, attempt=attempt, guild=guild, member=member,
+            metrics_registry=self._metrics, registry=self.active_quizzes, registry_key=(guild.id, member.id)
+        )
+        self.active_quizzes[(guild.id, member.id)] = runner
+        await runner.run()
+
     async def start_quiz(self, member: Member, guild: Guild):
-        self.logger.info(f'Starting quiz for user {member.name} in {guild.name}')
+        self.logger.info(f'Starting quiz for user {member.name} (ID: {member.id}) in {guild.name}')
         quiz = self.config.get_quiz_by_guild(guild.id)
         quizee = self.quizees.get_quizee(guild.id, member)
         if not quiz:
             self.logger.warning(f'No matching quiz found for for guild {guild.name}')
             return
-        await QuizRunner(quizconfig=quiz, attempt=quizee['count'], guild=guild, member=member, metrics_registry=self._metrics).run()
+        await self._run_quiz(quiz, quizee['count'], guild, member)
 
     async def requiz_member(self, member: Member, guild: Guild):
-        self.logger.info(f'Redoing quiz for user {member.name} in {guild.name}')
+        self.logger.info(f'Redoing quiz for user {member.name} (ID: {member.id}) in {guild.name}')
         quiz = self.config.get_quiz_by_guild(guild.id)
         quizee = self.quizees.get_quizee(guild.id, member)
         if not quiz:
@@ -80,28 +122,48 @@ class Quiz():
         try:
             await member.remove_roles(*roles)
         except Forbidden as ex:
-            self.logger.error(f'Insufficient permissions to remove roles from user {member.name} during requiz: {ex}')
+            self.logger.error(f'Insufficient permissions to remove roles from user {member.name} (ID: {member.id}) during requiz: {ex}')
         except HTTPException as ex:
-            self.logger.error(f'Error removing roles from user {member.name} during requiz: {ex}')
-        
-        await QuizRunner(quizconfig=quiz, attempt=quizee['count'], guild=guild, member=member, metrics_registry=self._metrics).run()
+            self.logger.error(f'Error removing roles from user {member.name} (ID: {member.id}) during requiz: {ex}')
+
+        await self._run_quiz(quiz, quizee['count'], guild, member)
 
 
 class QuizRunner():
-    def __init__(self, quizconfig: QuizConfig, attempt: int, guild: Guild, member: Member, metrics_registry: MetricsRegistry) -> None:
+    def __init__(self, quizconfig: QuizConfig, attempt: int, guild: Guild, member: Member, metrics_registry: MetricsRegistry, registry: dict = None, registry_key=None) -> None:
         self._metrics = metrics_registry
         self.config = quizconfig
         self.guild = guild
         self.member = member
         self.attempt_count = attempt
-        
+        self.current_view = None
+        self.quiz_channel = None
+        self.registry = registry
+        self.registry_key = registry_key
+        self.cancelled = False
+
+    def _unregister(self):
+        if self.registry is not None and self.registry.get(self.registry_key) is self:
+            del self.registry[self.registry_key]
+
+    async def cancel(self):
+        self.cancelled = True
+        if self.current_view:
+            self.current_view.stop()
+        if self.quiz_channel:
+            try:
+                await self.quiz_channel.delete()
+            except (Forbidden, HTTPException):
+                pass
+        self._unregister()
+
     async def run(self):
         self._metrics.counter("Quiz Runs").inc()
         self.failed = False
         self.base_channel = self.guild.get_channel(self.config.quiz_base_channel_id)
         self.quiz_channel = await self.base_channel.create_thread(name=f'Quiz for {self.member.name}', auto_archive_duration=60)
         self.audit = QuizLogger(self.config, self.guild)
-        await self.audit.send_audit(f'Starting quiz for user {self.member.name}.')
+        await self.audit.send_audit(f'Starting quiz for user {self.member.name} (ID: {self.member.id}).')
         await self._send_welcome_message()
         await self.quiz_channel.edit(invitable=False)
         self.questions = self.config.questions.copy()
@@ -146,12 +208,14 @@ class QuizRunner():
         try:
             self._metrics.counter("Quiz Successes").inc()
             await self.quiz_channel.send(self.config.success_text)
-            await self.audit.send_audit(f"User {self.member.name} completed the rules quiz successfully.")
+            await self.audit.send_audit(f"User {self.member.name} (ID: {self.member.id}) completed the rules quiz successfully.")
             role = self.guild.get_role(self.config.success_role_id)
             await self.member.add_roles(role)
         finally:
+            self._unregister()
             await asyncio.sleep(10)
-            await self.quiz_channel.delete()
+            if not self.cancelled:
+                await self.quiz_channel.delete()
 
     async def _do_action(self, action: Action):
         match action:
@@ -183,24 +247,32 @@ class QuizRunner():
                 await self.quiz_channel.send(content=self.config.fail_text)
             else:
                 await self.quiz_channel.send("Sorry, it looks like you failed the quiz.")
-            await self.audit.send_audit(f"User {self.member.name} failed the rules quiz: {self.current_question.fail_audit}. Taking action [{self.config.fail_actions[self.attempt_count].name if self.attempt_count < len(self.config.fail_actions) else self.config.fail_actions[-1].name}]")
+            await self.audit.send_audit(f"User {self.member.name} (ID: {self.member.id}) failed the rules quiz: {self.current_question.fail_audit}. Taking action [{self.config.fail_actions[self.attempt_count-1].name if self.attempt_count < len(self.config.fail_actions) else self.config.fail_actions[-1].name}]")
             await asyncio.sleep(10)
+            if self.cancelled:
+                return
             if self.attempt_count < len(self.config.fail_actions):
                 await self._do_action(self.config.fail_actions[self.attempt_count-1])
             else:
                 await self._do_action(self.config.fail_actions[-1])
         finally:
-            await self.quiz_channel.delete()
+            self._unregister()
+            if not self.cancelled:
+                await self.quiz_channel.delete()
 
     async def _timeout_callback(self):
         try:
             self._metrics.counter(f"Timeouts").inc()
             await self.quiz_channel.send(self.current_question.timeout_text)
-            await self.audit.send_audit(f"User {self.member.name} failed the rules quiz: {self.current_question.timeout_audit}. Taking action [{self.config.timeout_action.name}]")
+            await self.audit.send_audit(f"User {self.member.name} (ID: {self.member.id}) failed the rules quiz: {self.current_question.timeout_audit}. Taking action [{self.config.timeout_action.name}]")
             await asyncio.sleep(10)
+            if self.cancelled:
+                return
             await self._do_action(self.config.timeout_action)
         finally:
-            await self.quiz_channel.delete()
+            self._unregister()
+            if not self.cancelled:
+                await self.quiz_channel.delete()
 
     async def _correct_answer_callback(self, interaction: discord.Interaction):
         self._metrics.counter("Correct Answers").inc()

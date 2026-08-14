@@ -51,10 +51,10 @@ class JoinBot(discord.Bot):
             for pattern, action_cfg in quiz.compiled_name_regex_actions:
                 if pattern.search(member.name) or pattern.search(member.display_name):
                     logger.info(
-                        f'User {member.name} matched join regex {pattern.pattern}. Action {action_cfg.action.name}'
+                        f'User {member.name} (ID: {member.id}) matched join regex {pattern.pattern}. Action {action_cfg.action.name}'
                     )
                     await QuizLogger(quiz, guild).send_audit(
-                        f'User {member.name} matched join regex {pattern.pattern}. Taking action {action_cfg.action.name}'
+                        f'User {member.name} (ID: {member.id}) matched join regex {pattern.pattern}. Taking action {action_cfg.action.name}'
                     )
                     if action_cfg.action == Action.KICK:
                         await guild.kick(member)
@@ -64,6 +64,17 @@ class JoinBot(discord.Bot):
                         await banish_user(member, guild)
                     return
         await self._quizconfig.start_quiz(member, guild)
+
+    async def on_member_remove(self, member: discord.Member):
+        guild = member.guild
+        if (guild.id, member.id) in self._quizconfig.active_quizzes:
+            logger.info(f'User {member.name} (ID: {member.id}) left {guild.name} while a quiz was in progress.')
+            quiz = self.quizconfig.config.get_quiz_by_guild(guild.id)
+            if quiz:
+                await QuizLogger(quiz, guild).send_audit(
+                    f'User {member.name} (ID: {member.id}) left the server while a quiz was in progress.'
+                )
+            await self._quizconfig.cancel_active_quiz(guild.id, member.id)
 
     async def send_metrics(self, guild):
         metrics = self._metrics.dump_metrics()
@@ -94,7 +105,7 @@ async def requiz(ctx: discord.ApplicationContext, member: discord.Member):
 
 @client.slash_command(description="Banish a user from the server. This will remove all roles except the banish role.")
 async def banish(ctx: discord.ApplicationContext, member: discord.Member, reason: str | None = None):
-    await banish_user(member, ctx.guild)
+    await banish_user(member, ctx.guild, moderator=ctx.author)
     if reason:
         await member.send(f'You have been banished from {ctx.guild.name} for the following reason: {reason}')
         await ctx.respond(f'{member.display_name} has been banished for the following reason: {reason}')
@@ -111,7 +122,7 @@ async def reload_quiz(ctx: discord.ApplicationContext):
     if quiz:
         await QuizLogger(quiz, ctx.guild).send_audit("Quiz configuration reloaded via /reload command.")
 
-async def banish_user(member: discord.Member, guild: discord.Guild):
+async def banish_user(member: discord.Member, guild: discord.Guild, moderator: discord.Member | None = None):
     quiz = client.quizconfig.config.get_quiz_by_guild(guild.id)
     if not quiz or not quiz.banish_role_id:
         logger.error('No banish role configured for this guild.')
@@ -124,6 +135,13 @@ async def banish_user(member: discord.Member, guild: discord.Guild):
     if roles_to_remove:
         await member.remove_roles(*roles_to_remove)
     await member.add_roles(role)
+    if moderator:
+        logger.info(
+            f'User {member.name} (ID: {member.id}) was manually banished by moderator {moderator.name} (ID: {moderator.id}).'
+        )
+        await QuizLogger(quiz, guild).send_audit(
+            f'User {member.name} (ID: {member.id}) was manually banished by moderator {moderator.name} (ID: {moderator.id}).'
+        )
 
 
 if __name__ == "__main__":
