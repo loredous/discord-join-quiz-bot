@@ -42,7 +42,7 @@ def load_state(state_path: str) -> dict:
     if not path.is_file():
         return {}
     try:
-        with open(path, 'r') as state_file:
+        with open(path) as state_file:
             raw = json.load(state_file)
     except Exception:
         logger.exception(f'Failed to load state file [{state_path}]; starting with empty state.')

@@ -1,14 +1,14 @@
 
 import asyncio
+import logging
 import os
 from typing import Any
+
 import discord
-import logging
 import pyformance
-import re
+
 from quiz import Quiz, QuizLogger
 from quiz_config import Action
-from discord.ext.commands import Context
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DiscordJoinQuizBot')
@@ -24,7 +24,7 @@ class JoinBot(discord.Bot):
     @property
     def quizconfig(self):
         return self._quizconfig
-    
+
     @quizconfig.setter
     def quizconfig(self, config: Quiz):
         self._quizconfig = config
@@ -42,7 +42,7 @@ class JoinBot(discord.Bot):
         for guild in self.guilds:
             asyncio.create_task(self.send_metrics(guild))
         self.loop.call_later(86400,self.daily_metrics)
-    
+
     def purge_quizees(self):
         for guild in self.guilds:
             self.quizconfig.quizees.purge(guild.id)
@@ -91,7 +91,7 @@ class JoinBot(discord.Bot):
 
     async def requiz_member(self, guild, member):
         await self._quizconfig.requiz_member(member, guild)
-        
+
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -101,38 +101,57 @@ intents.reactions = True
 client = JoinBot(intents=intents)
 logger.info("Setting up Discord client.")
 
+async def _require_guild(ctx: discord.ApplicationContext) -> discord.Guild | None:
+    if ctx.guild is None:
+        await ctx.respond("This command can only be used in a server.", ephemeral=True)
+        return None
+    return ctx.guild
+
 @client.slash_command(name="metrics", description="Display the quizbot's metrics in the bot logging channel")
 async def send_metrics(ctx: discord.ApplicationContext):
-    await client.send_metrics(ctx.guild)
+    guild = await _require_guild(ctx)
+    if guild is None:
+        return
+    await client.send_metrics(guild)
     await ctx.respond('Metrics sent to logging channel', ephemeral=True)
 
 @client.slash_command(description="Force a user to go back through the join quiz")
 async def requiz(ctx: discord.ApplicationContext, member: discord.Member):
-    quiz = client.quizconfig.config.get_quiz_by_guild(ctx.guild.id)
+    guild = await _require_guild(ctx)
+    if guild is None:
+        return
+    quiz = client.quizconfig.config.get_quiz_by_guild(guild.id)
     if quiz and quiz.moderator_banish_role_id and any(role.id == quiz.moderator_banish_role_id for role in member.roles):
         await ctx.respond(f'{member.display_name} has been banished by a moderator and cannot be re-quizzed.', ephemeral=True)
         return
-    await client.requiz_member(ctx.guild, member)
+    await client.requiz_member(guild, member)
     await ctx.respond(f'Re-quiz started for user {member.display_name}')
 
 @client.slash_command(description="Banish a user from the server. This will remove all roles except the banish role.")
 async def banish(ctx: discord.ApplicationContext, member: discord.Member, reason: str | None = None):
-    await banish_user(member, ctx.guild, moderator=ctx.author)
+    guild = await _require_guild(ctx)
+    if guild is None:
+        return
+    moderator = ctx.author if isinstance(ctx.author, discord.Member) else None
+    await banish_user(member, guild, moderator=moderator)
     if reason:
-        await member.send(f'You have been banished from {ctx.guild.name} for the following reason: {reason}')
+        await member.send(f'You have been banished from {guild.name} for the following reason: {reason}')
         await ctx.respond(f'{member.display_name} has been banished for the following reason: {reason}')
     else:
-        await member.send(f'You have been banished from {ctx.guild.name}.')
+        await member.send(f'You have been banished from {guild.name}.')
         await ctx.respond(f'{member.display_name} has been banished.')
 
 @client.slash_command(name="reload", description="Force a reload of the quiz configuration")
 async def reload_quiz(ctx: discord.ApplicationContext):
+    guild = await _require_guild(ctx)
+    if guild is None:
+        return
     config = os.getenv('QUIZ_CONFIG', "/quiz_config.yaml")
     client.quizconfig = Quiz(config, client._metrics, state_path=STATE_PATH)
     await ctx.send_response("Quiz config reloaded", ephemeral=True)
-    quiz = client.quizconfig.config.get_quiz_by_guild(ctx.guild.id)
+    quiz = client.quizconfig.config.get_quiz_by_guild(guild.id)
     if quiz:
-        await QuizLogger(quiz, ctx.guild).send_audit("Quiz configuration reloaded via /reload command.")
+        await QuizLogger(quiz, guild).send_audit("Quiz configuration reloaded via /reload command.")
 
 async def banish_user(member: discord.Member, guild: discord.Guild, moderator: discord.Member | None = None):
     quiz = client.quizconfig.config.get_quiz_by_guild(guild.id)

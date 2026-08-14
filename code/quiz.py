@@ -1,17 +1,17 @@
 import asyncio
+import datetime
 import logging
+import random
 import re
-from typing import List
+from pathlib import Path
 
 import discord
-from quiz_config import QuizConfig, Question, Answer, Action, QuizList
-import state_store
-from pathlib import Path
-from discord import Forbidden, HTTPException, Member, User, Interaction, Guild
-from pyformance import MetricsRegistry
 import yaml
-import random
-import datetime
+from discord import Forbidden, Guild, HTTPException, Member
+from pyformance import MetricsRegistry
+
+import state_store
+from quiz_config import Action, Answer, QuizConfig, QuizList
 
 _METRIC_ORDER = [
     "Quiz Runs",
@@ -28,6 +28,8 @@ _METRIC_ORDER = [
 
 _QUESTION_METRIC_RE = re.compile(r'^Question (\d+) (Correct|Wrong) Answers$')
 
+logger = logging.getLogger('Quizzer')
+
 def _metric_sort_key(name: str):
     if name in _METRIC_ORDER:
         return (0, _METRIC_ORDER.index(name), name)
@@ -38,7 +40,7 @@ def _metric_sort_key(name: str):
         return (1, question_number, answer_rank, name)
     return (2, 0, 0, name)
 
-class QuizLogger():
+class QuizLogger:
     channel = None
 
     def __init__(self, config: QuizConfig, guild: Guild) -> None:
@@ -55,7 +57,7 @@ class QuizLogger():
     async def send_metrics(self, metrics: dict):
         if self.channel:
             embed = discord.Embed(title="QuizBot Metrics")
-            embed.description = f"Quizbot metrics since last restart"
+            embed.description = "Quizbot metrics since last restart"
             if not metrics:
                 embed.add_field(name='No Metrics Found', value='No metrics recorded since last restart', inline=True)
             else:
@@ -63,8 +65,8 @@ class QuizLogger():
                     embed.add_field(name=key, value=metrics[key]['count'], inline=True)
             await self.channel.send(embed=embed)
 
-class Quiz():
-    def __init__(self, quiz_config_path: str, metrics_registry: MetricsRegistry, state_path: str = None) -> None:
+class Quiz:
+    def __init__(self, quiz_config_path: str, metrics_registry: MetricsRegistry, state_path: str | None = None) -> None:
         self._metrics = metrics_registry
         self.logger = logging.getLogger('Quizzer')
         config_path = Path(quiz_config_path)
@@ -76,7 +78,7 @@ class Quiz():
         self.quizees = QuizeeList()
         if state_path:
             self.quizees.load(state_path)
-        self.active_quizzes = {}
+        self.active_quizzes: dict[tuple[int, int], QuizRunner] = {}
 
     def save_state(self):
         if not self.state_path:
@@ -85,17 +87,17 @@ class Quiz():
             self.quizees.save(self.state_path)
         except Exception:
             self.logger.exception(f'Failed to persist quiz state to [{self.state_path}]')
-        
+
     def __load_quiz_configuration(self, config_file_path):
         self.logger.info(f'Attempting to load quiz configuration from file [{config_file_path}]')
         try:
-            with open(config_file_path, 'r') as config_file:
+            with open(config_file_path) as config_file:
                 config_dict = yaml.load(config_file, yaml.Loader)
             self.config = QuizList.parse_obj(config_dict)
         except Exception as ex:
-            self.logger.exception(f'Exception when attempting to load quiz configuration!')
+            self.logger.exception('Exception when attempting to load quiz configuration!')
             raise ex
-        
+
     async def cancel_active_quiz(self, guild_id: int, member_id: int):
         existing = self.active_quizzes.get((guild_id, member_id))
         if existing:
@@ -127,12 +129,12 @@ class Quiz():
         if not quiz:
             self.logger.warning(f'No matching quiz found for for guild {guild.name}')
             return
-        roles = []
-        roles.append(guild.get_role(quiz.success_role_id))
+        role_ids = [quiz.success_role_id]
         if quiz.banish_role_id:
-            roles.append(guild.get_role(quiz.banish_role_id))
+            role_ids.append(quiz.banish_role_id)
         if quiz.moderator_banish_role_id and quiz.moderator_banish_role_id != quiz.banish_role_id:
-            roles.append(guild.get_role(quiz.moderator_banish_role_id))
+            role_ids.append(quiz.moderator_banish_role_id)
+        roles = [role for role_id in role_ids if (role := guild.get_role(role_id)) is not None]
         try:
             await member.remove_roles(*roles)
         except Forbidden as ex:
@@ -143,8 +145,8 @@ class Quiz():
         await self._run_quiz(quiz, quizee['count'], guild, member)
 
 
-class QuizRunner():
-    def __init__(self, quizconfig: QuizConfig, attempt: int, guild: Guild, member: Member, metrics_registry: MetricsRegistry, registry: dict = None, registry_key=None) -> None:
+class QuizRunner:
+    def __init__(self, quizconfig: QuizConfig, attempt: int, guild: Guild, member: Member, metrics_registry: MetricsRegistry, registry: dict | None = None, registry_key=None) -> None:
         self._metrics = metrics_registry
         self.config = quizconfig
         self.guild = guild
@@ -198,14 +200,14 @@ class QuizRunner():
         self.current_view = self._view_builder(self.current_question.answers, self.current_question.timeout, self.current_question.randomize_answers)
         await self.quiz_channel.send(content=self.current_question.text, view=self.current_view)
 
-    def _view_builder(self, answers: List[Answer], timeout: int, randomize: bool):
+    def _view_builder(self, answers: list[Answer], timeout: int, randomize: bool):
         view = discord.ui.View(timeout=timeout)
         view.disable_on_timeout = True
         view.on_timeout = self._timeout_callback
         if randomize:
             random.shuffle(answers)
         for answer in answers:
-            button = discord.ui.Button()
+            button: discord.ui.Button = discord.ui.Button()
             button.quiz_answer = answer
             button.style = discord.ButtonStyle.primary
             button.label = answer.text
@@ -217,14 +219,17 @@ class QuizRunner():
                 button.callback = self._wrong_answer_callback
             view.add_item(button)
         return view
-            
+
     async def _complete_successful(self):
         try:
             self._metrics.counter("Quiz Successes").inc()
             await self.quiz_channel.send(self.config.success_text)
             await self.audit.send_audit(f"User {self.member.name} (ID: {self.member.id}) completed the rules quiz successfully.")
             role = self.guild.get_role(self.config.success_role_id)
-            await self.member.add_roles(role)
+            if role:
+                await self.member.add_roles(role)
+            else:
+                logger.error("Configured success role not found; unable to grant it.")
         finally:
             self._unregister()
             await asyncio.sleep(10)
@@ -234,16 +239,18 @@ class QuizRunner():
     async def _do_action(self, action: Action):
         match action:
             case Action.KICK:
-                self._metrics.counter(f"Kicks").inc()
-                self._metrics.counter(f"Actions Taken").inc()
+                self._metrics.counter("Kicks").inc()
+                self._metrics.counter("Actions Taken").inc()
                 await self.guild.kick(self.member)
             case Action.BAN:
-                self._metrics.counter(f"Bans").inc()
-                self._metrics.counter(f"Actions Taken").inc()
+                self._metrics.counter("Bans").inc()
+                self._metrics.counter("Actions Taken").inc()
                 await self.guild.ban(self.member)
             case Action.BANISH:
-                self._metrics.counter(f"Banishes").inc()
-                self._metrics.counter(f"Actions Taken").inc()
+                self._metrics.counter("Banishes").inc()
+                self._metrics.counter("Actions Taken").inc()
+                if not self.config.banish_role_id:
+                    return
                 role = self.guild.get_role(self.config.banish_role_id)
                 if not role:
                     return
@@ -276,7 +283,7 @@ class QuizRunner():
 
     async def _timeout_callback(self):
         try:
-            self._metrics.counter(f"Timeouts").inc()
+            self._metrics.counter("Timeouts").inc()
             await self.quiz_channel.send(self.current_question.timeout_text)
             await self.audit.send_audit(f"User {self.member.name} (ID: {self.member.id}) failed the rules quiz: {self.current_question.timeout_audit}. Taking action [{self.config.timeout_action.name}]")
             await asyncio.sleep(10)
@@ -314,9 +321,9 @@ class QuizRunner():
             self.current_view.disable_all_items()
             await self._complete_fail()
 
-class QuizeeList():
+class QuizeeList:
     def __init__(self) -> None:
-        self.quizees = {}
+        self.quizees: dict[int, dict[int, dict]] = {}
 
     def load(self, state_path: str):
         self.quizees = state_store.load_state(state_path)

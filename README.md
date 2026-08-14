@@ -125,6 +125,20 @@ For Kubernetes, see `deployment_examples/kubernetes/bot.yaml` for a plain manife
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
+<!-- DEVELOPMENT -->
+## Development
+
+Install dev dependencies and run the checks that also run in CI:
+
+```sh
+pip install -r requirements-dev.txt
+ruff check .
+mypy code
+pytest
+```
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
 
 
 <!-- ROADMAP -->
