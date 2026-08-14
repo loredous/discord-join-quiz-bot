@@ -124,6 +124,7 @@ async def requiz(ctx: discord.ApplicationContext, member: discord.Member):
     if quiz and quiz.moderator_banish_role_id and any(role.id == quiz.moderator_banish_role_id for role in member.roles):
         await ctx.respond(f'{member.display_name} has been banished by a moderator and cannot be re-quizzed.', ephemeral=True)
         return
+    await ctx.defer()
     await client.requiz_member(guild, member)
     await ctx.respond(f'Re-quiz started for user {member.display_name}')
 
@@ -133,6 +134,7 @@ async def banish(ctx: discord.ApplicationContext, member: discord.Member, reason
     if guild is None:
         return
     moderator = ctx.author if isinstance(ctx.author, discord.Member) else None
+    await ctx.defer()
     await banish_user(member, guild, moderator=moderator)
     if reason:
         await member.send(f'You have been banished from {guild.name} for the following reason: {reason}')

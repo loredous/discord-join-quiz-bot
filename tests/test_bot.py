@@ -93,6 +93,29 @@ async def test_banish_user_logs_and_returns_when_no_role_configured(monkeypatch)
 
 
 @pytest.mark.asyncio
+async def test_banish_command_defers_before_slow_work(monkeypatch) -> None:
+    quiz = _quiz(banish_role_id=20, moderator_banish_role_id=None)
+    _set_quizconfig(monkeypatch, quiz)
+    role = MagicMock(name="banish_role", id=20)
+    guild = _guild_with_role(20, role)
+    member = _member_with_roles()
+    member.display_name = "SomeUser"
+    member.send = AsyncMock()
+
+    ctx = MagicMock()
+    ctx.guild = guild
+    ctx.author = MagicMock(spec=[])
+    ctx.respond = AsyncMock()
+    ctx.defer = AsyncMock()
+
+    await bot.banish.callback(ctx, member, None)
+
+    ctx.defer.assert_awaited_once()
+    member.add_roles.assert_awaited_once_with(role)
+    ctx.respond.assert_awaited_once()
+
+
+@pytest.mark.asyncio
 async def test_requiz_refuses_when_member_has_moderator_banish_role(monkeypatch) -> None:
     quiz = _quiz(banish_role_id=20, moderator_banish_role_id=30)
     _set_quizconfig(monkeypatch, quiz)
@@ -124,11 +147,13 @@ async def test_requiz_proceeds_when_member_lacks_moderator_banish_role(monkeypat
     ctx = MagicMock()
     ctx.guild = MagicMock(id=111)
     ctx.respond = AsyncMock()
+    ctx.defer = AsyncMock()
     member = _member_with_roles(other_role)
     member.display_name = "GoodActor"
 
     await bot.requiz.callback(ctx, member)
 
+    ctx.defer.assert_awaited_once()
     requiz_member_mock.assert_awaited_once_with(ctx.guild, member)
     ctx.respond.assert_awaited_once()
     assert "Re-quiz started" in ctx.respond.await_args.args[0]
@@ -144,9 +169,11 @@ async def test_requiz_proceeds_when_moderator_banish_role_not_configured(monkeyp
     ctx = MagicMock()
     ctx.guild = MagicMock(id=111)
     ctx.respond = AsyncMock()
+    ctx.defer = AsyncMock()
     member = _member_with_roles()
     member.display_name = "SomeUser"
 
     await bot.requiz.callback(ctx, member)
 
+    ctx.defer.assert_awaited_once()
     requiz_member_mock.assert_awaited_once_with(ctx.guild, member)
