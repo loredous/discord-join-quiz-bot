@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "quizbot.fullname" . }}
+  labels:
+    {{- include "quizbot.labels" . | nindent 4 }}
+spec:
+  # Quiz state is tracked in-process and persisted to a single PVC, so this
+  # chart only supports a single replica.
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "quizbot.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "quizbot.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- with .Values.securityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: quizbot
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: BOT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "quizbot.secretName" . }}
+                  key: {{ .Values.existingSecretKey }}
+            - name: QUIZ_CONFIG
+              value: /conf/quiz.yaml
+            - name: QUIZ_STATE_PATH
+              value: {{ .Values.statePath | quote }}
+            - name: QUIZ_STATE_SAVE_INTERVAL
+              value: {{ .Values.stateSaveIntervalSeconds | quote }}
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          volumeMounts:
+            - name: quiz-config
+              mountPath: /conf
+              readOnly: true
+            {{- if .Values.persistence.enabled }}
+            - name: quiz-state
+              mountPath: {{ .Values.persistence.mountPath }}
+            {{- end }}
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+        - name: quiz-config
+          configMap:
+            name: {{ include "quizbot.fullname" . }}-config
+        {{- if .Values.persistence.enabled }}
+        - name: quiz-state
+          persistentVolumeClaim:
+            claimName: {{ include "quizbot.pvcName" . }}
+        {{- end }}

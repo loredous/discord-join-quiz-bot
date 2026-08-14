@@ -1,8 +1,9 @@
-from pydantic import BaseModel, validator, Field
-from typing import Optional, List, Union
 import re
 from enum import Enum
 from hashlib import md5
+
+from pydantic import BaseModel, Field, validator
+
 
 class Action(Enum):
     KICK = 1
@@ -14,12 +15,12 @@ class Answer(BaseModel):
     text: str
     id: str = ""
     correct: bool = False
-    post_text: Optional[str]
+    post_text: str | None = None
 
     @validator('id', pre=True, always=True)
     def set_default_id(cls, v, *, values, **kwargs):
         return v or md5(values['text'].encode()).hexdigest()
-        
+
 
 class Question(BaseModel):
     order: int
@@ -30,7 +31,7 @@ class Question(BaseModel):
     fail_count: int = 1
     fail_audit: str = "Failed a question"
     randomize_answers: bool = False
-    answers: List[Answer]
+    answers: list[Answer]
 
     def get_answer_by_id(self, answer_id: str):
         ans = [answer for answer in self.answers if answer.id == answer_id]
@@ -48,18 +49,19 @@ class NameRegexAction(BaseModel):
         return v
 
 class QuizConfig(BaseModel):
-    guild_ids: Union[ int, List[int] ]
+    guild_ids: int | list[int]
     welcome_text: str
     quiz_base_channel_id: int
-    log_channel_id: Optional[int]
+    log_channel_id: int | None
     success_role_id: int
-    banish_role_id: Optional[int] = None
-    success_text: Optional[str]
-    questions: List[Question]
-    name_regex_actions: Optional[List[NameRegexAction]] = Field(default_factory=list)
+    banish_role_id: int | None = None
+    moderator_banish_role_id: int | None = None
+    success_text: str | None
+    questions: list[Question]
+    name_regex_actions: list[NameRegexAction] | None = Field(default_factory=list)
     fail_actions: list[Action] = [Action.KICK, Action.BAN]
     timeout_action: Action = Action.KICK
-    fail_text: Optional[str]
+    fail_text: str | None
 
     @validator('timeout_action', pre=True)
     def set_action_by_string(cls, v, *, values, **kwargs):
@@ -73,8 +75,8 @@ class QuizConfig(BaseModel):
         raise ValueError("fail_actions must be a list of Action or strings")
 
     @property
-    def compiled_name_regex_actions(self):
-        compiled = []
+    def compiled_name_regex_actions(self) -> list[tuple[re.Pattern, "NameRegexAction"]]:
+        compiled: list[tuple[re.Pattern, NameRegexAction]] = []
         if not self.name_regex_actions:
             return compiled
         for action in self.name_regex_actions:
@@ -86,7 +88,7 @@ class QuizConfig(BaseModel):
         return compiled
 
 class QuizList(BaseModel):
-    quizzes: List[QuizConfig]
+    quizzes: list[QuizConfig]
 
     def get_quiz_by_guild(self, guild_id):
         for quiz in self.quizzes:

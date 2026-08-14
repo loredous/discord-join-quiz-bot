@@ -1,0 +1,74 @@
+image:
+  repository: ghcr.io/loredous/discord-join-quiz-bot
+  tag: main
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+# Discord bot token. Ignored if existingSecret is set.
+botToken: ""
+
+# Name of an existing Secret to source the bot token from instead of botToken above.
+existingSecret: ""
+# Key within existingSecret that holds the bot token.
+existingSecretKey: "bot-token"
+
+# Rendered verbatim into a ConfigMap as /conf/quiz.yaml. See example_quiz.yaml
+# in the project repo for the full schema (questions, roles, fail/timeout
+# actions, name_regex_actions, moderator_banish_role_id, etc.).
+quizConfig:
+  quizzes:
+    - guild_ids: 0
+      welcome_text: "Hello {mention}, welcome! Please read the rules before answering."
+      quiz_base_channel_id: 0
+      log_channel_id: 0
+      success_role_id: 0
+      banish_role_id: 0
+      moderator_banish_role_id: 0
+      success_text: "Thanks for reading the rules! You now have full access."
+      fail_text: "It looks like you need to review the rules again."
+      fail_actions:
+        - kick
+        - banish
+        - ban
+      timeout_action: kick
+      questions:
+        - order: 1
+          text: "Do you agree to follow the server rules?"
+          timeout: 300
+          timeout_text: "You took too long to respond."
+          fail_count: 1
+          answers:
+            - text: "I agree"
+              correct: true
+            - text: "I don't agree"
+
+# Persistent storage for the bot's quiz-state file (attempt counts, etc.),
+# saved every stateSaveIntervalSeconds so it survives pod restarts.
+persistence:
+  enabled: true
+  size: 100Mi
+  storageClass: ""
+  accessModes:
+    - ReadWriteOnce
+  mountPath: /data
+  # Set to reuse an existing PVC instead of creating one.
+  existingClaim: ""
+
+statePath: /data/quizbot_state.json
+stateSaveIntervalSeconds: 60
+
+extraEnv: []
+# - name: SOME_EXTRA_VAR
+#   value: "value"
+
+resources: {}
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+podAnnotations: {}
+
+securityContext:
+  runAsUser: 10000
+  runAsGroup: 10001

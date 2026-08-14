@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "quizbot.fullname" . }}-config
+  labels:
+    {{- include "quizbot.labels" . | nindent 4 }}
+data:
+  quiz.yaml: |
+    {{- toYaml .Values.quizConfig | nindent 4 }}

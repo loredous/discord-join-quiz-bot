@@ -1,0 +1,32 @@
+[tool.ruff]
+line-length = 160
+src = ["code"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP"]
+ignore = ["E501"]
+
+[tool.mypy]
+mypy_path = "code"
+explicit_package_bases = true
+ignore_missing_imports = true
+check_untyped_defs = true
+warn_unused_ignores = true
+exclude = ["tests/"]
+
+# QuizRunner drives Discord UI interactively: it stashes data on
+# discord.ui.Button instances (quiz_answer/quiz_runner), reassigns
+# View/Button callback attributes, and treats the base/quiz channel and
+# interaction custom_id as always-present after setup even though py-cord
+# types them Optional/Union for the general case. Modeling that precisely
+# would mean rewriting the interactive quiz flow, not just annotating it, so
+# these known-safe dynamic patterns are exempted here rather than silenced
+# line-by-line.
+[[tool.mypy.overrides]]
+module = "quiz"
+disable_error_code = ["union-attr", "attr-defined", "method-assign", "assignment", "arg-type"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["code"]
+asyncio_mode = "auto"
