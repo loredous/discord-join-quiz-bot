@@ -84,7 +84,7 @@ The simplest way to get started running the bot is to run it locally on your dev
 1. Clone the repository  (`git@github.com:loredous/discord-join-quiz-bot.git`)
 2. Change into the newly cloned repository (`cd discord-join-quiz-bot`)
 3. Install the required packages used by the bot (`pip install -r requirements.txt`)
-4. Modify the `example_quiz.yaml` file to include the appropriate ID values for your test server. You can also define `name_regex_actions` to automatically kick or ban users whose names match specific patterns.
+4. Modify the `example_quiz.yaml` file to include the appropriate ID values for your test server. You can also define `name_regex_actions` to automatically kick or ban users whose names match specific patterns. `moderator_banish_role_id` is optional and, if set, is used only for moderator-triggered `/banish`, letting it differ from the `banish_role_id` applied on quiz failure; if unset, `/banish` falls back to `banish_role_id`.
 5. Set the Discord bot token in the environment variable BOT_TOKEN (`export BOT_TOKEN=mytokengoeshere`)
 6. Run the bot (`python code/bot.py`)
 
@@ -104,6 +104,15 @@ The simplest way to get started running the bot is to run it locally on your dev
 The preferred way to run the bot is by deploying the latest version of the Docker container image with your specific quiz configuration mapped to `/conf/quiz.yaml`, and the Discord bot token provided in the environment variable BOT_TOKEN.
 
 `docker run -d -e BOT_TOKEN=mytokengoeshere -v ./my_quiz.yaml:/conf/quiz.yaml docker pull ghcr.io/loredous/discord-join-quiz-bot:main`
+
+The bot periodically persists its quiz-attempt state (so a restart doesn't lose track of how many times a user has attempted the quiz) to a JSON file. Mount a persistent volume over that path to survive restarts:
+
+| Environment variable | Default | Description |
+| --- | --- | --- |
+| `QUIZ_STATE_PATH` | `/data/quizbot_state.json` | Path where quiz-attempt state is saved. |
+| `QUIZ_STATE_SAVE_INTERVAL` | `60` | Seconds between state saves. |
+
+For Kubernetes, see `deployment_examples/kubernetes/bot.yaml` for a plain manifest, or the Helm chart at `deployment_examples/helm/quizbot` (published to `oci://ghcr.io/loredous/charts/quizbot` on tagged releases) for a templated install with a config-driven ConfigMap and a PVC for state persistence.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 

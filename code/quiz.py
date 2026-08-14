@@ -5,6 +5,7 @@ from typing import List
 
 import discord
 from quiz_config import QuizConfig, Question, Answer, Action, QuizList
+import state_store
 from pathlib import Path
 from discord import Forbidden, HTTPException, Member, User, Interaction, Guild
 from pyformance import MetricsRegistry
@@ -63,7 +64,7 @@ class QuizLogger():
             await self.channel.send(embed=embed)
 
 class Quiz():
-    def __init__(self, quiz_config_path: str, metrics_registry: MetricsRegistry) -> None:
+    def __init__(self, quiz_config_path: str, metrics_registry: MetricsRegistry, state_path: str = None) -> None:
         self._metrics = metrics_registry
         self.logger = logging.getLogger('Quizzer')
         config_path = Path(quiz_config_path)
@@ -71,8 +72,19 @@ class Quiz():
             self.logger.fatal(f'quiz_config_path value {quiz_config_path} is not a file!')
             raise RuntimeError(f'quiz_config_path value {quiz_config_path} is not a file!')
         self.__load_quiz_configuration(quiz_config_path)
+        self.state_path = state_path
         self.quizees = QuizeeList()
+        if state_path:
+            self.quizees.load(state_path)
         self.active_quizzes = {}
+
+    def save_state(self):
+        if not self.state_path:
+            return
+        try:
+            self.quizees.save(self.state_path)
+        except Exception:
+            self.logger.exception(f'Failed to persist quiz state to [{self.state_path}]')
         
     def __load_quiz_configuration(self, config_file_path):
         self.logger.info(f'Attempting to load quiz configuration from file [{config_file_path}]')
@@ -119,6 +131,8 @@ class Quiz():
         roles.append(guild.get_role(quiz.success_role_id))
         if quiz.banish_role_id:
             roles.append(guild.get_role(quiz.banish_role_id))
+        if quiz.moderator_banish_role_id and quiz.moderator_banish_role_id != quiz.banish_role_id:
+            roles.append(guild.get_role(quiz.moderator_banish_role_id))
         try:
             await member.remove_roles(*roles)
         except Forbidden as ex:
@@ -303,7 +317,13 @@ class QuizRunner():
 class QuizeeList():
     def __init__(self) -> None:
         self.quizees = {}
-    
+
+    def load(self, state_path: str):
+        self.quizees = state_store.load_state(state_path)
+
+    def save(self, state_path: str):
+        state_store.save_state(self.quizees, state_path)
+
     def get_quizee(self, guild_id: int, member: Member) -> dict:
         if guild_id not in self.quizees:
             self.quizees[guild_id] = {}

@@ -1,0 +1,9 @@
+apiVersion: v2
+name: quizbot
+description: Helm chart for the Discord Join Quiz Bot
+type: application
+version: 0.1.0
+appVersion: "main"
+home: https://github.com/loredous/discord-join-quiz-bot
+sources:
+  - https://github.com/loredous/discord-join-quiz-bot

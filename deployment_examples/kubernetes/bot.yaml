@@ -87,6 +87,20 @@ data:
 
 ---
 
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: quizbot-state
+  namespace: quizbot
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
+
+---
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -113,12 +127,19 @@ spec:
                 secretKeyRef:
                   name: quizbot-token
                   key: bot_token
+            - name: QUIZ_STATE_PATH
+              value: /data/quizbot_state.json
           volumeMounts:
           - name: quiz-config
             mountPath: /conf
             readOnly: true
+          - name: quiz-state
+            mountPath: /data
       volumes:
       - name: quiz-config
         configMap:
           name: quizbot-config
+      - name: quiz-state
+        persistentVolumeClaim:
+          claimName: quizbot-state
 

@@ -13,6 +13,9 @@ from discord.ext.commands import Context
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('DiscordJoinQuizBot')
 
+STATE_PATH = os.getenv('QUIZ_STATE_PATH', '/data/quizbot_state.json')
+STATE_SAVE_INTERVAL = int(os.getenv('QUIZ_STATE_SAVE_INTERVAL', '60'))
+
 class JoinBot(discord.Bot):
     def __init__(self, *, loop: asyncio.AbstractEventLoop | None = None, **options: Any):
         self._metrics = pyformance.MetricsRegistry()
@@ -29,6 +32,7 @@ class JoinBot(discord.Bot):
     async def on_ready(self):
         self.loop.call_later(86400,self.daily_metrics)
         self.loop.call_later(1200,self.purge_quizees)
+        self.loop.call_later(STATE_SAVE_INTERVAL,self.persist_state)
         for guild in self.guilds:
             quiz = self.quizconfig.config.get_quiz_by_guild(guild.id)
             if quiz:
@@ -43,6 +47,10 @@ class JoinBot(discord.Bot):
         for guild in self.guilds:
             self.quizconfig.quizees.purge(guild.id)
         self.loop.call_later(1200,self.purge_quizees)
+
+    def persist_state(self):
+        self.quizconfig.save_state()
+        self.loop.call_later(STATE_SAVE_INTERVAL,self.persist_state)
 
     async def on_member_join(self, member: discord.Member):
         guild = member.guild
@@ -116,7 +124,7 @@ async def banish(ctx: discord.ApplicationContext, member: discord.Member, reason
 @client.slash_command(name="reload", description="Force a reload of the quiz configuration")
 async def reload_quiz(ctx: discord.ApplicationContext):
     config = os.getenv('QUIZ_CONFIG', "/quiz_config.yaml")
-    client.quizconfig = Quiz(config, client._metrics)
+    client.quizconfig = Quiz(config, client._metrics, state_path=STATE_PATH)
     await ctx.send_response("Quiz config reloaded", ephemeral=True)
     quiz = client.quizconfig.config.get_quiz_by_guild(ctx.guild.id)
     if quiz:
@@ -124,14 +132,18 @@ async def reload_quiz(ctx: discord.ApplicationContext):
 
 async def banish_user(member: discord.Member, guild: discord.Guild, moderator: discord.Member | None = None):
     quiz = client.quizconfig.config.get_quiz_by_guild(guild.id)
-    if not quiz or not quiz.banish_role_id:
+    if not quiz:
+        logger.error('No quiz configuration found for this guild.')
+        return
+    banish_role_id = (quiz.moderator_banish_role_id or quiz.banish_role_id) if moderator else quiz.banish_role_id
+    if not banish_role_id:
         logger.error('No banish role configured for this guild.')
         return
-    role = guild.get_role(quiz.banish_role_id)
+    role = guild.get_role(banish_role_id)
     if not role:
         logger.error('Configured banish role not found.')
         return
-    roles_to_remove = [r for r in member.roles if r != guild.default_role and r.id != quiz.banish_role_id]
+    roles_to_remove = [r for r in member.roles if r != guild.default_role and r.id != banish_role_id]
     if roles_to_remove:
         await member.remove_roles(*roles_to_remove)
     await member.add_roles(role)
@@ -149,7 +161,8 @@ if __name__ == "__main__":
     config = os.getenv('QUIZ_CONFIG', "/quiz_config.yaml")
     if token:
         logger.info(f'Loading quiz configuration from [{config}]')
-        quiz = Quiz(config, client._metrics)
+        logger.info(f'Persisting quiz state to [{STATE_PATH}] every {STATE_SAVE_INTERVAL} seconds')
+        quiz = Quiz(config, client._metrics, state_path=STATE_PATH)
         client.quizconfig = quiz
         logger.info(f'Starting Discord client with token {token[:5]}-***-{token[-5:]}')
         client.run(token)
