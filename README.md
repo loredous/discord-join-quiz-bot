@@ -49,6 +49,7 @@
     <li><a href="#roadmap">Roadmap</a></li>
     <li><a href="#contributing">Contributing</a></li>
     <li><a href="#license">License</a></li>
+    <li><a href="#terms-of-service-and-privacy-policy">Terms of Service and Privacy Policy</a></li>
     <li><a href="#contact">Contact</a></li>
     <li><a href="#acknowledgments">Acknowledgments</a></li>
   </ol>
@@ -174,6 +175,15 @@ Don't forget to give the project a star! Thanks again!
 ## License
 
 Distributed under the GPL-3.0 license. See `LICENSE.txt` for more information.
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+
+
+<!-- TERMS AND PRIVACY -->
+## Terms of Service and Privacy Policy
+
+The instance of the bot operated by the maintainer is covered by the [Terms of Service](TERMS_OF_SERVICE.md) and [Privacy Policy](PRIVACY_POLICY.md). If you run your own copy of the bot, you are its operator and are responsible for your own terms and privacy practices; feel free to adapt these documents as a starting point.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
