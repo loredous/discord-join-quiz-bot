@@ -44,7 +44,7 @@ class QuizLogger:
     channel = None
 
     def __init__(self, config: QuizConfig, guild: Guild) -> None:
-        self.restart_timestamp = datetime.datetime.now(datetime.timezone.utc)
+        self.restart_timestamp = datetime.datetime.now(datetime.UTC)
         if config.log_channel_id:
             self.channel = guild.get_channel(config.log_channel_id)
 
@@ -337,15 +337,15 @@ class QuizeeList:
         if member not in self.quizees[guild_id].keys():
             self.quizees[guild_id][member.id] = {
                 'count': 1,
-                'last_quiz': datetime.datetime.now(datetime.timezone.utc)
+                'last_quiz': datetime.datetime.now(datetime.UTC)
             }
         else:
             self.quizees[guild_id][member.id]['count'] += 1
-            self.quizees[guild_id][member.id]['last_quiz'] = datetime.datetime.now(datetime.timezone.utc)
+            self.quizees[guild_id][member.id]['last_quiz'] = datetime.datetime.now(datetime.UTC)
         return self.quizees[guild_id][member.id]
 
     def purge(self, guild_id: int):
         if guild_id in self.quizees:
             for member in list(self.quizees[guild_id].keys()):
-                if (datetime.datetime.now(datetime.timezone.utc) - self.quizees[guild_id][member]['last_quiz']).total_seconds() > 86400:
+                if (datetime.datetime.now(datetime.UTC) - self.quizees[guild_id][member]['last_quiz']).total_seconds() > 86400:
                     del self.quizees[guild_id][member]
