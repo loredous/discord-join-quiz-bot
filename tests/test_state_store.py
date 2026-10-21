@@ -7,7 +7,7 @@ import state_store
 
 def test_save_and_load_round_trip(tmp_path: Path) -> None:
     state_path = tmp_path / "nested" / "state.json"
-    now = datetime.datetime.now(datetime.timezone.utc)
+    now = datetime.datetime.now(datetime.UTC)
     quizees = {111: {222: {"count": 2, "last_quiz": now}}}
 
     state_store.save_state(quizees, str(state_path))
@@ -42,7 +42,7 @@ def test_load_corrupt_file_returns_empty_dict(tmp_path: Path) -> None:
 
 def test_saved_file_uses_string_keys_for_json_compatibility(tmp_path: Path) -> None:
     state_path = tmp_path / "state.json"
-    now = datetime.datetime.now(datetime.timezone.utc)
+    now = datetime.datetime.now(datetime.UTC)
     state_store.save_state({111: {222: {"count": 1, "last_quiz": now}}}, str(state_path))
 
     with open(state_path) as f:

@@ -11,7 +11,7 @@ from quiz import Quiz, QuizeeList
 def test_quizeelist_save_and_load_round_trip(tmp_path: Path) -> None:
     state_path = tmp_path / "state.json"
     quizees = QuizeeList()
-    now = datetime.datetime.now(datetime.timezone.utc)
+    now = datetime.datetime.now(datetime.UTC)
     quizees.quizees = {111: {222: {"count": 3, "last_quiz": now}}}
 
     quizees.save(str(state_path))
@@ -23,7 +23,7 @@ def test_quizeelist_save_and_load_round_trip(tmp_path: Path) -> None:
 
 def test_quiz_loads_existing_state_on_init(quiz_config_file: Path, tmp_path: Path) -> None:
     state_path = tmp_path / "state.json"
-    now = datetime.datetime.now(datetime.timezone.utc)
+    now = datetime.datetime.now(datetime.UTC)
     state_store.save_state({111: {222: {"count": 5, "last_quiz": now}}}, str(state_path))
 
     quiz = Quiz(str(quiz_config_file), MagicMock(), state_path=str(state_path))
@@ -39,7 +39,7 @@ def test_quiz_without_state_path_starts_empty(quiz_config_file: Path) -> None:
 def test_quiz_save_state_writes_to_configured_path(quiz_config_file: Path, tmp_path: Path) -> None:
     state_path = tmp_path / "state.json"
     quiz = Quiz(str(quiz_config_file), MagicMock(), state_path=str(state_path))
-    quiz.quizees.quizees = {111: {222: {"count": 1, "last_quiz": datetime.datetime.now(datetime.timezone.utc)}}}
+    quiz.quizees.quizees = {111: {222: {"count": 1, "last_quiz": datetime.datetime.now(datetime.UTC)}}}
 
     quiz.save_state()
 
