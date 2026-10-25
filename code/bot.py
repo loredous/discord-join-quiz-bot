@@ -19,6 +19,7 @@ STATE_SAVE_INTERVAL = int(os.getenv('QUIZ_STATE_SAVE_INTERVAL', '60'))
 class JoinBot(discord.Bot):
     def __init__(self, *, loop: asyncio.AbstractEventLoop | None = None, **options: Any):
         self._metrics = pyformance.MetricsRegistry()
+        self._timers_started = False
         super().__init__(loop=loop, **options)
 
     @property
@@ -30,9 +31,13 @@ class JoinBot(discord.Bot):
         self._quizconfig = config
 
     async def on_ready(self):
-        self.loop.call_later(86400,self.daily_metrics)
-        self.loop.call_later(1200,self.purge_quizees)
-        self.loop.call_later(STATE_SAVE_INTERVAL,self.persist_state)
+        # on_ready fires again on every gateway re-identify; only start the
+        # self-rescheduling timers once so they don't multiply.
+        if not self._timers_started:
+            self._timers_started = True
+            self.loop.call_later(86400,self.daily_metrics)
+            self.loop.call_later(1200,self.purge_quizees)
+            self.loop.call_later(STATE_SAVE_INTERVAL,self.persist_state)
         for guild in self.guilds:
             quiz = self.quizconfig.config.get_quiz_by_guild(guild.id)
             if quiz:
@@ -97,7 +102,13 @@ intents = discord.Intents.default()
 intents.members = True
 intents.reactions = True
 
-client = JoinBot(intents=intents)
+# The members intent is needed for join/leave events, but the bot never reads
+# the member cache, so skip chunking and caching full member lists.
+client = JoinBot(
+    intents=intents,
+    member_cache_flags=discord.MemberCacheFlags.none(),
+    chunk_guilds_at_startup=False,
+)
 logger.info("Setting up Discord client.")
 
 async def _require_guild(ctx: discord.ApplicationContext) -> discord.Guild | None:

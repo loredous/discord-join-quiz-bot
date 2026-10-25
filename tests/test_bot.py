@@ -177,3 +177,17 @@ async def test_requiz_proceeds_when_moderator_banish_role_not_configured(monkeyp
 
     ctx.defer.assert_awaited_once()
     requiz_member_mock.assert_awaited_once_with(ctx.guild, member)
+
+
+@pytest.mark.asyncio
+async def test_on_ready_only_schedules_timers_once(monkeypatch):
+    _set_quizconfig(monkeypatch, None)
+    fake_loop = MagicMock()
+    monkeypatch.setattr(bot.client, "loop", fake_loop, raising=False)
+    monkeypatch.setattr(bot.client, "_timers_started", False, raising=False)
+    monkeypatch.setattr(type(bot.client), "guilds", property(lambda self: []))
+
+    await bot.client.on_ready()
+    await bot.client.on_ready()
+
+    assert fake_loop.call_later.call_count == 3

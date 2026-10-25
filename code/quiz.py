@@ -334,7 +334,7 @@ class QuizeeList:
     def get_quizee(self, guild_id: int, member: Member) -> dict:
         if guild_id not in self.quizees:
             self.quizees[guild_id] = {}
-        if member not in self.quizees[guild_id].keys():
+        if member.id not in self.quizees[guild_id]:
             self.quizees[guild_id][member.id] = {
                 'count': 1,
                 'last_quiz': datetime.datetime.now(datetime.UTC)
