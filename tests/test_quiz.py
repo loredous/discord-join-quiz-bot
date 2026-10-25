@@ -109,3 +109,13 @@ async def test_requiz_member_skips_duplicate_role_when_moderator_role_matches_ba
     await quiz.requiz_member(member, guild)
 
     member.remove_roles.assert_awaited_once_with(success_role, banish_role)
+
+
+def test_get_quizee_increments_count_for_returning_member() -> None:
+    quizees = QuizeeList()
+    member = MagicMock()
+    member.id = 222
+
+    assert quizees.get_quizee(111, member)["count"] == 1
+    assert quizees.get_quizee(111, member)["count"] == 2
+    assert quizees.get_quizee(111, member)["count"] == 3
